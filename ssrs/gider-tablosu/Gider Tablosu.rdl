@@ -1,0 +1,3298 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Report MustUnderstand="df" xmlns="http://schemas.microsoft.com/sqlserver/reporting/2016/01/reportdefinition" xmlns:rd="http://schemas.microsoft.com/SQLServer/reporting/reportdesigner" xmlns:df="http://schemas.microsoft.com/sqlserver/reporting/2016/01/reportdefinition/defaultfontfamily">
+  <df:DefaultFontFamily>Segoe UI</df:DefaultFontFamily>
+  <AutoRefresh>0</AutoRefresh>
+  <DataSources>
+    <DataSource Name="DataSource1">
+      <ConnectionProperties>
+        <DataProvider>SQL</DataProvider>
+        <ConnectString>Data Source=ERP;Initial Catalog=LOGODB</ConnectString>
+        <IntegratedSecurity>true</IntegratedSecurity>
+      </ConnectionProperties>
+      <rd:SecurityType>Integrated</rd:SecurityType>
+      <rd:DataSourceID>6386f73a-2e92-42c3-9228-c2bff04b2496</rd:DataSourceID>
+    </DataSource>
+  </DataSources>
+  <DataSets>
+    <DataSet Name="DataSet1">
+      <Query>
+        <DataSourceName>DataSource1</DataSourceName>
+        <QueryParameters>
+          <QueryParameter Name="@inpOdemeDurum">
+            <Value>=Parameters!inpOdemeDurum.Value</Value>
+          </QueryParameter>
+          <QueryParameter Name="@StartYear">
+            <Value>=Parameters!StartYear.Value</Value>
+          </QueryParameter>
+          <QueryParameter Name="@inpOdemeAy">
+            <Value>=Parameters!inpOdemeAy.Value</Value>
+          </QueryParameter>
+          <QueryParameter Name="@FaturaOzelKod">
+            <Value>=Parameters!FaturaOzelKod.Value</Value>
+          </QueryParameter>
+          <QueryParameter Name="@BankaFisleriOzelKod">
+            <Value>=Parameters!BankaFisleriOzelKod.Value</Value>
+          </QueryParameter>
+          <QueryParameter Name="@BankaFisleriFaturaOzelKod">
+            <Value>=Parameters!BankaFisleriFaturaOzelKod.Value</Value>
+          </QueryParameter>
+          <QueryParameter Name="@CariHesapFisleriOzelKod">
+            <Value>=Parameters!CariHesapFisleriOzelKod.Value</Value>
+          </QueryParameter>
+        </QueryParameters>
+        <CommandText>SET language turkish
+
+-------FATURA ---------------
+SELECT
+CONVERT(varchar,INV.DATE_,104) 'Fatura Tarih',
+
+INV.FICHENO AS 'Fatura No' , 
+(SELECT top 1 SPC.DEFINITION_ FROM LG_001_SPECODES SPC WHERE SPC.SPECODE = INV.SPECODE AND SPC.SPECODETYPE = 22 ) AS 'Açıklama',
+CONCAT(INV.GENEXP1, ' ' , INV.GENEXP2,' ',INV.GENEXP3, INV.GENEXP4,' ',INV.GENEXP5) AS 'Not',
+
+
+concat(
+DATEPART(DAY,INV.DOCDATE), ' ',
+DATENAME(MONTH,INV.DOCDATE), ' ',
+DATEPART(YEAR,(INV.DOCDATE)),' ',
+DATENAME(DW,INV.DOCDATE)
+
+) as 'Ödeme Tarih',
+
+(SELECT TOP 1  SPC.DEFINITION_ FROM LG_001_SPECODES SPC WHERE  SPC.SPECODETYPE = 4  AND SPC.SPETYP4 =1  AND SPC.SPECODE = 
+(SELECT TOP 1 SRV.SPECODE4 FROM LG_001_SRVCARD SRV WHERE SRV.LOGICALREF = (SELECT TOP 1 STL.STOCKREF FROM  LG_001_01_STLINE STL WHERE STL.INVOICEREF = INV.LOGICALREF )  ) ) AS Talimat,
+
+DATEDIFF(DAY, GETDATE() ,DOCDATE)  AS 'Kalan Gün',
+
+INV.NETTOTAL AS 'Tutar',
+
+
+DATEPART(YEAR,DOCDATE)  as 'Odeme Yil' ,
+DATENAME(MONTH,DOCDATE) as 'Odeme Ay', 
+CASE WHEN OPSTAT = 3 THEN 'Bekliyor' when OPSTAT = 0 then  'Ödendi' end as 'Sonuç',
+
+(SELECT TOP 1 DEFINITION_ FROM LG_001_CLCARD CLC WHERE CLC.LOGICALREF = INV.CLIENTREF) AS 'Cari Unvan',
+
+'(04) A.H.F' as 'Evrak Tip',
+INV.DOCDATE as 'OdemeZaman'
+
+FROM LG_001_01_INVOICE INV WHERE  INV.TRCODE = 04 
+
+
+AND BRANCH = 0
+
+AND CASE WHEN OPSTAT = 3 THEN 'Bekliyor' when OPSTAT = 0 then  'Ödendi' END IN (@inpOdemeDurum)
+
+
+AND DATEPART(YEAR,INV.DOCDATE) IN (@StartYear)
+AND DATENAME(MONTH,INV.DOCDATE) IN (@inpOdemeAy)
+AND (SELECT  SPC.DEFINITION_ FROM LG_001_SPECODES SPC WHERE SPC.SPECODE = INV.SPECODE AND SPC.SPECODETYPE = 22 AND  SPC.CODETYPE = 1 ) IN (@FaturaOzelKod)
+
+AND ISNULL(INV.SPECODE,'') &lt;&gt; '' AND  ISNULL(INV.DOCDATE,'') &lt;&gt; ''
+
+AND INV.FROMBANK = 0
+
+--ORDER BY INV.DOCDATE ASC
+--------------------------------------------------------------------------------------------
+-------Banka Fişleri---------------
+UNION 
+
+--SET language turkish
+SELECT BNF.DATE_ as  'Fatura Tarih',BNF.FICHENO AS 'Fatura No' ,
+CASE WHEN BNF.TRCODE = 4 THEN (SELECT top 1 SPC.DEFINITION_ FROM LG_001_SPECODES SPC WHERE SPC.SPECODE = BNF.SPECODE AND SPC.SPECODETYPE = 43 AND CODETYPE = 1 ) 
+WHEN BNF.TRCODE = 16 THEN (SELECT top 1 SPC.DEFINITION_ FROM LG_001_SPECODES SPC WHERE SPC.SPECODE = BNF.SPECODE AND SPC.SPECODETYPE = 22 AND SPC.CODETYPE = 1 )  END 
+AS 'Açıklama',
+CONCAT(BNF.GENEXP1, ' ',BNF.GENEXP2,' ',BNF.GENEXP3,' ',BNF.GENEXP4,' ',BNF.GENEXP5,' ',BNF.GENEXP6 ) AS 'Not', 
+concat(
+DATEPART(DAY,BNF.DATE_), ' ',
+DATENAME(MONTH,BNF.DATE_), ' ',
+DATEPART(YEAR,(BNF.DATE_)),' ',
+DATENAME(DW,BNF.DATE_)
+
+) as 'Ödeme Tarih',
+(select top 1 BCC.DEFINITION_ FROM  LG_001_BANKACC BCC WHERE BCC.LOGICALREF  = (SELECT TOP 1 BFL.BNACCREF FROM LG_001_01_BNFLINE BFL WHERE BFL.SOURCEFREF = BNF.LOGICALREF  )) AS 'Talimat',
+'' AS 'Kalan Gün',
+BNF.CREDITTOT  AS  'Tutar',
+DATEPART(YEAR,DATE_)  as 'Odeme Yil' ,
+DATENAME(MONTH,DATE_) as 'Odeme Ay', 
+CASE WHEN ISNULL(BNF.SPECODE,'') = '' THEN 'Bekliyor' when  ISNULL(BNF.SPECODE,'') &lt;&gt; ''  then  'Ödendi' end as 'Sonuç',
+
+(SELECT TOP 1 DEFINITION_ from LG_001_CLCARD CLC WHERE CLC.LOGICALREF =(SELECT TOP 1 BNL.CLIENTREF FROM  LG_001_01_BNFLINE BNL  WHERE BNL.SOURCEFREF = BNF.LOGICALREF)  ) AS 'Cari Unvan',
+
+CASE WHEN BNF.TRCODE = 4 THEN '(04) G.H/EFT ' WHEN BNF.TRCODE = 16 THEN '(16) B.A.H.F'  END  as 'Evrak Tip',
+
+BNF.DATE_ as 'OdemeZaman'
+
+FROM LG_001_01_BNFICHE BNF WHERE   BNF.TRCODE IN(4,16) AND BNF.BRANCH = 0 AND ISNULL(BNF.SPECODE,'') &lt;&gt; ''
+
+
+and  CASE WHEN ISNULL(BNF.SPECODE,'') = '' THEN 'Bekliyor' when  ISNULL(BNF.SPECODE,'') &lt;&gt; ''  then  'Ödendi' end IN (@inpOdemeDurum)
+
+AND DATEPART(YEAR,BNF.DATE_) IN (@StartYear)
+AND DATENAME(MONTH,BNF.DATE_) IN (@inpOdemeAy)
+AND BNF.TRCODE = 4
+
+AND (SELECT  SPC.DEFINITION_ FROM LG_001_SPECODES SPC WHERE SPC.SPECODE = BNF.SPECODE AND SPC.SPECODETYPE = 43 AND CODETYPE = 1 ) IN (@BankaFisleriOzelKod)
+
+
+
+
+--ORDER BY BNF.DATE_ ASC
+
+-------------------------------------------------
+--------------------------------------------------------------------------------------------
+-------Banka Fişleri Fatura---------------
+UNION 
+
+--SET language turkish
+SELECT BNF.DATE_ as  'Fatura Tarih',BNF.FICHENO AS 'Fatura No' ,
+CASE WHEN BNF.TRCODE = 4 THEN (SELECT top 1 SPC.DEFINITION_ FROM LG_001_SPECODES SPC WHERE SPC.SPECODE = BNF.SPECODE AND SPC.SPECODETYPE = 43 AND CODETYPE = 1 ) 
+WHEN BNF.TRCODE = 16 THEN (SELECT top 1 SPC.DEFINITION_ FROM LG_001_SPECODES SPC WHERE SPC.SPECODE = BNF.SPECODE AND SPC.SPECODETYPE = 22 AND SPC.CODETYPE = 1 )  END 
+AS 'Açıklama',
+CONCAT(BNF.GENEXP1, ' ',BNF.GENEXP2,' ',BNF.GENEXP3,' ',BNF.GENEXP4,' ',BNF.GENEXP5,' ',BNF.GENEXP6 ) AS 'Not', 
+concat(
+DATEPART(DAY,BNF.DATE_), ' ',
+DATENAME(MONTH,BNF.DATE_), ' ',
+DATEPART(YEAR,(BNF.DATE_)),' ',
+DATENAME(DW,BNF.DATE_)
+
+) as 'Ödeme Tarih',
+(select top 1 BCC.DEFINITION_ FROM  LG_001_BANKACC BCC WHERE BCC.LOGICALREF  = (SELECT TOP 1 BFL.BNACCREF FROM LG_001_01_BNFLINE BFL WHERE BFL.SOURCEFREF = BNF.LOGICALREF  )) AS 'Talimat',
+'' AS 'Kalan Gün',
+BNF.CREDITTOT  AS  'Tutar',
+DATEPART(YEAR,DATE_)  as 'Odeme Yil' ,
+DATENAME(MONTH,DATE_) as 'Odeme Ay', 
+CASE WHEN ISNULL(BNF.SPECODE,'') = '' THEN 'Bekliyor' when  ISNULL(BNF.SPECODE,'') &lt;&gt; ''  then  'Ödendi' end as 'Sonuç',
+
+(SELECT TOP 1 DEFINITION_ from LG_001_CLCARD CLC WHERE CLC.LOGICALREF =(SELECT TOP 1 BNL.CLIENTREF FROM  LG_001_01_BNFLINE BNL  WHERE BNL.SOURCEFREF = BNF.LOGICALREF)  ) AS 'Cari Unvan',
+
+CASE WHEN BNF.TRCODE = 4 THEN '(04) G.H/EFT ' WHEN BNF.TRCODE = 16 THEN '(16) B.A.H.F'  END  as 'Evrak Tip',
+
+BNF.DATE_ as 'OdemeZaman'
+
+FROM LG_001_01_BNFICHE BNF WHERE   BNF.TRCODE IN(16) AND BNF.BRANCH = 0 AND ISNULL(BNF.SPECODE,'') &lt;&gt; ''
+
+
+AND CASE WHEN ISNULL(BNF.SPECODE,'') = '' THEN 'Bekliyor' when  ISNULL(BNF.SPECODE,'') &lt;&gt; ''  then  'Ödendi' end IN (@inpOdemeDurum)
+
+AND DATEPART(YEAR,BNF.DATE_) IN (@StartYear)
+AND DATENAME(MONTH,BNF.DATE_) IN (@inpOdemeAy)
+
+AND (SELECT  SPC.DEFINITION_ FROM LG_001_SPECODES SPC WHERE SPC.SPECODE = BNF.SPECODE AND SPC.SPECODETYPE = 22 AND SPC.CODETYPE = 1 ) IN (@BankaFisleriFaturaOzelKod)
+
+
+
+--ORDER BY BNF.DATE_ ASC
+
+-------------------------------------------------
+
+
+-------Cari Hesap Fişleri ---------------
+UNION 
+
+SELECT 
+
+'' as  'Fatura Tarih',CLF.FICHENO AS 'Fatura No' ,
+(SELECT top 1 SPC.DEFINITION_ FROM LG_001_SPECODES SPC WHERE SPC.SPECODE = CLF.SPECCODE AND SPC.SPECODETYPE = 44 AND CODETYPE = 1 ) AS 'Açıklama',
+CONCAT(CLF.GENEXP1, ' ',CLF.GENEXP2,' ',CLF.GENEXP3,' ',CLF.GENEXP4,' ',CLF.GENEXP5,' ',CLF.GENEXP6 ) AS 'Not', 
+concat(
+DATEPART(DAY,CLF.DATE_), ' ',
+DATENAME(MONTH,CLF.DATE_), ' ',
+DATEPART(YEAR,(CLF.DATE_)),' ',
+DATENAME(DW,CLF.DATE_)
+
+) as 'Ödeme Tarih',
+(select top 1 BCC.DEFINITION_ FROM  LG_001_BANKACC BCC WHERE BCC.LOGICALREF = CLF.BANKACCREF ) AS 'Talimat',
+'' AS 'Kalan Gün',
+CLF.DEBIT  AS  'Tutar',
+DATEPART(YEAR,DATE_)  as 'Odeme Yil' ,
+DATENAME(MONTH,DATE_) as 'Odeme Ay', 
+CASE WHEN ISNULL(CLF.SPECCODE,'') = '' THEN 'Bekliyor' when  ISNULL(CLF.SPECCODE,'') &lt;&gt; ''  then  'Ödendi' end as 'Sonuç',
+
+(SELECT TOP 1 DEFINITION_ from LG_001_CLCARD CLC WHERE CLC.LOGICALREF = CLF.CLCARDREF ) AS 'Cari Unvan',
+
+'(72) F.K.K.F' AS 'Evrak Tip',
+
+CLF.DATE_ as 'OdemeZaman'
+
+FROM 	LG_001_01_CLFICHE CLF WHERE  CLF.BRANCH = 0  AND ISNULL(CLF.SPECCODE,'') &lt;&gt; '' AND CLF.TRCODE = 72
+
+AND CASE WHEN ISNULL(CLF.SPECCODE,'') = '' THEN 'Bekliyor' when  ISNULL(CLF.SPECCODE,'') &lt;&gt; ''  then  'Ödendi' end IN (@inpOdemeDurum)
+
+AND DATEPART(YEAR,CLF.DATE_) IN (@StartYear)
+AND DATENAME(MONTH,CLF.DATE_) IN (@inpOdemeAy)
+AND (SELECT SPC.DEFINITION_ FROM LG_001_SPECODES SPC WHERE SPC.SPECODE = CLF.SPECCODE AND SPC.SPECODETYPE = 44 AND SPC.CODETYPE = 1 ) IN (@CariHesapFisleriOzelKod)
+
+order by OdemeZaman asc</CommandText>
+        <rd:UseGenericDesigner>true</rd:UseGenericDesigner>
+      </Query>
+      <Fields>
+        <Field Name="Fatura_Tarih">
+          <DataField>Fatura Tarih</DataField>
+          <rd:TypeName>System.DateTime</rd:TypeName>
+        </Field>
+        <Field Name="Fatura_No">
+          <DataField>Fatura No</DataField>
+          <rd:TypeName>System.String</rd:TypeName>
+        </Field>
+        <Field Name="Açıklama">
+          <DataField>Açıklama</DataField>
+          <rd:TypeName>System.String</rd:TypeName>
+        </Field>
+        <Field Name="Not">
+          <DataField>Not</DataField>
+          <rd:TypeName>System.String</rd:TypeName>
+        </Field>
+        <Field Name="Ödeme_Tarih">
+          <DataField>Ödeme Tarih</DataField>
+          <rd:TypeName>System.String</rd:TypeName>
+        </Field>
+        <Field Name="Talimat">
+          <DataField>Talimat</DataField>
+          <rd:TypeName>System.String</rd:TypeName>
+        </Field>
+        <Field Name="Kalan_Gün">
+          <DataField>Kalan Gün</DataField>
+          <rd:TypeName>System.Int32</rd:TypeName>
+        </Field>
+        <Field Name="Tutar">
+          <DataField>Tutar</DataField>
+          <rd:TypeName>System.Double</rd:TypeName>
+        </Field>
+        <Field Name="Odeme_Yil">
+          <DataField>Odeme Yil</DataField>
+          <rd:TypeName>System.Int32</rd:TypeName>
+        </Field>
+        <Field Name="Odeme_Ay">
+          <DataField>Odeme Ay</DataField>
+          <rd:TypeName>System.String</rd:TypeName>
+        </Field>
+        <Field Name="Sonuç">
+          <DataField>Sonuç</DataField>
+          <rd:TypeName>System.String</rd:TypeName>
+        </Field>
+        <Field Name="Cari_Unvan">
+          <DataField>Cari Unvan</DataField>
+          <rd:TypeName>System.String</rd:TypeName>
+        </Field>
+        <Field Name="Evrak_Tip">
+          <DataField>Evrak Tip</DataField>
+          <rd:TypeName>System.String</rd:TypeName>
+        </Field>
+        <Field Name="OdemeZaman">
+          <DataField>OdemeZaman</DataField>
+          <rd:TypeName>System.DateTime</rd:TypeName>
+        </Field>
+      </Fields>
+    </DataSet>
+    <DataSet Name="Dataset2">
+      <Query>
+        <DataSourceName>DataSource1</DataSourceName>
+        <CommandText>SELECT
+(SELECT TOP 1  SPC.DEFINITION_ FROM LG_001_SPECODES SPC WHERE SPC.SPECODE = SRC.SPECODE2 AND SPC.SPECODETYPE = 4 AND SPC.SPETYP2 = 1) AS 'Özel Kod2' ,
+(SELECT TOP 1  SPC.DEFINITION_ FROM LG_001_SPECODES SPC WHERE SPC.SPECODE = SRC.SPECODE3 AND SPC.SPECODETYPE = 4 AND SPC.SPETYP3 =1) AS 'Özel Kod3' ,
+(SELECT TOP 1  SPC.DEFINITION_ FROM LG_001_SPECODES SPC WHERE SPC.SPECODE = SRC.SPECODE4 AND SPC.SPECODETYPE = 4  AND SPC.SPETYP4 =1 ) AS 'Özel Kod4' ,
+
+ SRC.DEFINITION2 as 'Hizmet Adı', '' Fatura FROM LG_001_SRVCARD SRC  WHERE SPECODE2 = 002</CommandText>
+        <rd:UseGenericDesigner>true</rd:UseGenericDesigner>
+      </Query>
+      <Fields>
+        <Field Name="Özel_Kod2">
+          <DataField>Özel Kod2</DataField>
+          <rd:TypeName>System.String</rd:TypeName>
+        </Field>
+        <Field Name="Özel_Kod3">
+          <DataField>Özel Kod3</DataField>
+          <rd:TypeName>System.String</rd:TypeName>
+        </Field>
+        <Field Name="Hizmet_Adı">
+          <DataField>Hizmet Adı</DataField>
+          <rd:TypeName>System.String</rd:TypeName>
+        </Field>
+        <Field Name="Özel_Kod4">
+          <DataField>Özel Kod4</DataField>
+          <rd:TypeName>System.String</rd:TypeName>
+        </Field>
+        <Field Name="Fatura">
+          <DataField>Fatura</DataField>
+          <rd:TypeName>System.String</rd:TypeName>
+        </Field>
+      </Fields>
+    </DataSet>
+    <DataSet Name="DataSet3">
+      <Query>
+        <DataSourceName>DataSource1</DataSourceName>
+        <CommandText>SET language turkish
+SELECT
+
+INV.NETTOTAL AS 'Tutar',
+concat(' ',
+DATENAME(DAY,(SELECT top 1 DBO.LG_INTTODATE(FUTMONTHBEGDATE) FROM LG_001_01_STLINE STL WHERE INV.LOGICALREF = STL.INVOICEREF )), ' ',
+
+DATENAME(MONTH,( SELECT top 1 DBO.LG_INTTODATE(FUTMONTHBEGDATE) FROM LG_001_01_STLINE STL WHERE INV.LOGICALREF = STL.INVOICEREF )), ' ',
+DATENAME(DW,( SELECT top 1 DBO.LG_INTTODATE(FUTMONTHBEGDATE) FROM LG_001_01_STLINE STL WHERE INV.LOGICALREF = STL.INVOICEREF ))
+
+) as 'Ödeme Tarih',
+CASE WHEN OPSTAT = 3 THEN 'Bekliyor' when OPSTAT = 0 then  'Ödendi' end as 'Sonuç',
+
+CONCAT(INV.GENEXP1, ' ' , INV.GENEXP2,' ',INV.GENEXP3, INV.GENEXP4,' ',INV.GENEXP5) AS 'Not',
+DATEPART(YEAR,(SELECT top 1 DBO.LG_INTTODATE(FUTMONTHBEGDATE) FROM LG_001_01_STLINE STL WHERE INV.LOGICALREF = STL.INVOICEREF )) as 'Odeme Yil',
+DATENAME(MONTH,(SELECT top 1 DBO.LG_INTTODATE(FUTMONTHBEGDATE) FROM LG_001_01_STLINE STL WHERE INV.LOGICALREF = STL.INVOICEREF )) as 'Odeme Ay'
+
+
+FROM LG_001_01_INVOICE INV WHERE  INV.TRCODE = 04 AND INV.FICHENO = '00000669' AND BRANCH = 0</CommandText>
+        <rd:UseGenericDesigner>true</rd:UseGenericDesigner>
+      </Query>
+      <Fields>
+        <Field Name="Tutar">
+          <DataField>Tutar</DataField>
+          <rd:TypeName>System.Double</rd:TypeName>
+        </Field>
+        <Field Name="Ödeme_Tarih">
+          <DataField>Ödeme Tarih</DataField>
+          <rd:TypeName>System.String</rd:TypeName>
+        </Field>
+        <Field Name="Sonuç">
+          <DataField>Sonuç</DataField>
+          <rd:TypeName>System.String</rd:TypeName>
+        </Field>
+        <Field Name="Not">
+          <DataField>Not</DataField>
+          <rd:TypeName>System.String</rd:TypeName>
+        </Field>
+        <Field Name="Odeme_Yil">
+          <DataField>Odeme Yil</DataField>
+          <rd:TypeName>System.Int32</rd:TypeName>
+        </Field>
+        <Field Name="Odeme_Ay">
+          <DataField>Odeme Ay</DataField>
+          <rd:TypeName>System.String</rd:TypeName>
+        </Field>
+      </Fields>
+    </DataSet>
+    <DataSet Name="FaturaOzelKod">
+      <Query>
+        <DataSourceName>DataSource1</DataSourceName>
+        <CommandText>SELECT
+
+
+SPC.DEFINITION_ AS 'FaturaOzelKod'
+
+FROM LG_001_SPECODES SPC 
+where 
+SPC.SPECODETYPE = 22
+AND SPC.CODETYPE = 1
+
+UNION 
+SELECT ''</CommandText>
+        <rd:UseGenericDesigner>true</rd:UseGenericDesigner>
+      </Query>
+      <Fields>
+        <Field Name="FaturaOzelKod">
+          <DataField>FaturaOzelKod</DataField>
+          <rd:TypeName>System.String</rd:TypeName>
+        </Field>
+      </Fields>
+    </DataSet>
+    <DataSet Name="BankaFisleriOzelKod">
+      <Query>
+        <DataSourceName>DataSource1</DataSourceName>
+        <CommandText>SELECT
+SPC.DEFINITION_ as 'BankaFisleriOzelKod'
+FROM LG_001_SPECODES SPC 
+where 
+SPC.SPECODETYPE = 43
+AND SPC.CODETYPE = 1
+UNION 
+SELECT ''</CommandText>
+        <rd:UseGenericDesigner>true</rd:UseGenericDesigner>
+      </Query>
+      <Fields>
+        <Field Name="BankaFisleriOzelKod">
+          <DataField>BankaFisleriOzelKod</DataField>
+          <rd:TypeName>System.String</rd:TypeName>
+        </Field>
+      </Fields>
+    </DataSet>
+    <DataSet Name="CariHesapFisleriOzelKod">
+      <Query>
+        <DataSourceName>DataSource1</DataSourceName>
+        <CommandText>SELECT
+SPC.DEFINITION_ as 'CariHesapFisleriOzelKod'
+FROM LG_001_SPECODES SPC 
+where 
+SPC.SPECODETYPE = 44
+AND SPC.CODETYPE = 1
+UNION 
+SELECT ''</CommandText>
+        <rd:UseGenericDesigner>true</rd:UseGenericDesigner>
+      </Query>
+      <Fields>
+        <Field Name="CariHesapFisleriOzelKod">
+          <DataField>CariHesapFisleriOzelKod</DataField>
+          <rd:TypeName>System.String</rd:TypeName>
+        </Field>
+      </Fields>
+    </DataSet>
+    <DataSet Name="BankaFisleriFaturaOzelKod">
+      <Query>
+        <DataSourceName>DataSource1</DataSourceName>
+        <CommandText>SELECT
+SPC.DEFINITION_ AS 'BankaFisleriFaturaOzelKod'
+
+FROM LG_001_SPECODES SPC 
+where 
+SPC.SPECODETYPE = 22
+AND SPC.CODETYPE = 1
+
+UNION 
+SELECT ''</CommandText>
+        <rd:UseGenericDesigner>true</rd:UseGenericDesigner>
+      </Query>
+      <Fields>
+        <Field Name="BankaFisleriFaturaOzelKod">
+          <DataField>BankaFisleriFaturaOzelKod</DataField>
+          <rd:TypeName>System.String</rd:TypeName>
+        </Field>
+      </Fields>
+    </DataSet>
+    <DataSet Name="FaturaOzelKodDefault">
+      <Query>
+        <DataSourceName>DataSource1</DataSourceName>
+        <CommandText>SELECT
+
+
+SPC.DEFINITION_ AS 'FaturaOzelKodDefault'
+
+FROM LG_001_SPECODES SPC 
+where 
+SPC.SPECODETYPE = 22
+AND SPC.CODETYPE = 1</CommandText>
+        <rd:UseGenericDesigner>true</rd:UseGenericDesigner>
+      </Query>
+      <Fields>
+        <Field Name="FaturaOzelKodDefault">
+          <DataField>FaturaOzelKodDefault</DataField>
+          <rd:TypeName>System.String</rd:TypeName>
+        </Field>
+      </Fields>
+    </DataSet>
+    <DataSet Name="BankaFisleriOzelKodDefault">
+      <Query>
+        <DataSourceName>DataSource1</DataSourceName>
+        <CommandText>SELECT
+SPC.DEFINITION_ as 'BankaFisleriOzelKodDefault'
+FROM LG_001_SPECODES SPC 
+where 
+SPC.SPECODETYPE = 43
+AND SPC.CODETYPE = 1</CommandText>
+      </Query>
+      <Fields>
+        <Field Name="BankaFisleriOzelKodDefault">
+          <DataField>BankaFisleriOzelKodDefault</DataField>
+          <rd:TypeName>System.String</rd:TypeName>
+        </Field>
+      </Fields>
+    </DataSet>
+    <DataSet Name="CariHesapFisleriOzelKodDefault">
+      <Query>
+        <DataSourceName>DataSource1</DataSourceName>
+        <CommandText>SELECT
+SPC.DEFINITION_ as 'CariHesapFisleriOzelKodDefault'
+FROM LG_001_SPECODES SPC 
+where 
+SPC.SPECODETYPE = 44
+AND SPC.CODETYPE = 1
+</CommandText>
+      </Query>
+      <Fields>
+        <Field Name="CariHesapFisleriOzelKodDefault">
+          <DataField>CariHesapFisleriOzelKodDefault</DataField>
+          <rd:TypeName>System.String</rd:TypeName>
+        </Field>
+      </Fields>
+    </DataSet>
+    <DataSet Name="BankaFisleriFaturaOzelKodDefault">
+      <Query>
+        <DataSourceName>DataSource1</DataSourceName>
+        <CommandText>SELECT
+SPC.DEFINITION_ AS 'BankaFisleriFaturaOzelKodDefault'
+
+FROM LG_001_SPECODES SPC 
+where 
+SPC.SPECODETYPE = 22
+AND SPC.CODETYPE = 1
+</CommandText>
+      </Query>
+      <Fields>
+        <Field Name="BankaFisleriFaturaOzelKodDefault">
+          <DataField>BankaFisleriFaturaOzelKodDefault</DataField>
+          <rd:TypeName>System.String</rd:TypeName>
+        </Field>
+      </Fields>
+    </DataSet>
+  </DataSets>
+  <ReportSections>
+    <ReportSection>
+      <Body>
+        <ReportItems>
+          <Tablix Name="Tablix2">
+            <TablixBody>
+              <TablixColumns>
+                <TablixColumn>
+                  <Width>25mm</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>22.67168mm</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>19.88977mm</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>37.18984mm</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>70.46438mm</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>50.65308mm</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>40.97648mm</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>15.92466mm</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>22.85315mm</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>17.93507mm</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>52.93998mm</Width>
+                </TablixColumn>
+              </TablixColumns>
+              <TablixRows>
+                <TablixRow>
+                  <Height>6mm</Height>
+                  <TablixCells>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox1">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value>Evrak</Value>
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontSize>11pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox1</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>Red</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox137">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value>Fat/Fiş No</Value>
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontSize>11pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox137</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>Red</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox139">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value>Fat.Tarih</Value>
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontSize>11pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox139</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>Red</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox13">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value>Gider Türü</Value>
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontSize>11pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox13</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>Red</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox14">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value>Cari Ünvanı</Value>
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontSize>11pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox13</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>Red</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox15">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value>Not</Value>
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontSize>11pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox15</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>Red</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox17">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value>Ödeme Tarih</Value>
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontSize>11pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox17</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>Red</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox19">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value>K.Gün</Value>
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontSize>11pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox19</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>Red</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox21">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value>Tutar</Value>
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox21</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>Red</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox7">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value>Sonuç</Value>
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox7</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>Red</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox18">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value>Talimat</Value>
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontSize>11pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox15</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>Red</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                  </TablixCells>
+                </TablixRow>
+                <TablixRow>
+                  <Height>3.93624mm</Height>
+                  <TablixCells>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Evrak_Tip">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value>=Fields!Evrak_Tip.Value</Value>
+                                  <Style>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontSize>9pt</FontSize>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Evrak_Tip</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>=IIF( Fields!Cari_Unvan.Value = "Gönderilen Havale/EFT ", "LightSteelBlue","White")</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Fatura_No">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value>=Fields!Fatura_No.Value</Value>
+                                  <Style>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontSize>9pt</FontSize>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Fatura_No</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>=IIF( Fields!Cari_Unvan.Value = "Gönderilen Havale/EFT ", "LightSteelBlue","White")</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Fatura_Tarih">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value>=Fields!Fatura_Tarih.Value</Value>
+                                  <Style>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontSize>9pt</FontSize>
+                                    <Format>dd.MM.yyyy</Format>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Fatura_Tarih</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>=IIF( Fields!Cari_Unvan.Value = "Gönderilen Havale/EFT ", "LightSteelBlue","White")</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Açıklama2">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value>=Fields!Açıklama.Value</Value>
+                                  <Style>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontSize>9pt</FontSize>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Açıklama1</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>=IIF( Fields!Cari_Unvan.Value = "Gönderilen Havale/EFT ", "LightSteelBlue","White")</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Cari_Unvan">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value>=Fields!Cari_Unvan.Value</Value>
+                                  <Style>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontSize>9pt</FontSize>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Cari_Unvan</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>=IIF( Fields!Cari_Unvan.Value = "Gönderilen Havale/EFT ", "LightSteelBlue","White")</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Not">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value>=Fields!Not.Value</Value>
+                                  <Style>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontSize>9pt</FontSize>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Not</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>=IIF( Fields!Cari_Unvan.Value = "Gönderilen Havale/EFT ", "LightSteelBlue","White")</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Ödeme_Tarih">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value>=Fields!Ödeme_Tarih.Value</Value>
+                                  <Style>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontSize>9pt</FontSize>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Ödeme_Tarih</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>=IIF( Fields!Cari_Unvan.Value = "Gönderilen Havale/EFT ", "LightSteelBlue","White")</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Kalan_Gün">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value>=Fields!Kalan_Gün.Value</Value>
+                                  <Style>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontSize>9pt</FontSize>
+                                    <Color>=IIf(Fields!Sonuç.Value = "Ödendi","White","Black")</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Kalan_Gün</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>=iif(Fields!Kalan_Gün.Value &lt; 1 AND Fields!Sonuç.Value = "Bekliyor", "RED",
+ 
+iif(Fields!Kalan_Gün.Value = 1  AND Fields!Sonuç.Value = "Bekliyor", "Orange",
+iif(Fields!Kalan_Gün.Value = 2  AND Fields!Sonuç.Value = "Bekliyor", "Orange",
+
+ iif(Fields!Kalan_Gün.Value = 3AND Fields!Sonuç.Value = "Bekliyor", "YELLOW","WHITE"))))</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Tutar">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value>=Fields!Tutar.Value</Value>
+                                  <Style>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontSize>9pt</FontSize>
+                                    <Format>#,0.00</Format>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Tutar</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>=IIF( Fields!Cari_Unvan.Value = "Gönderilen Havale/EFT ", "LightSteelBlue","White")</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Sonuç">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value>=Fields!Sonuç.Value</Value>
+                                  <Style>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontSize>9pt</FontSize>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>=IIf(Fields!Sonuç.Value = "Ödendi","White","Black")</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Sonuç</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>=IIf(Fields!Sonuç.Value = "Ödendi","Green","Orange")</BackgroundColor>
+                            <VerticalAlign>Top</VerticalAlign>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Talimat2">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value>=Fields!Talimat.Value</Value>
+                                  <Style>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontSize>9pt</FontSize>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Talimat</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>=IIF( Fields!Cari_Unvan.Value = "Gönderilen Havale/EFT ", "LightSteelBlue","White")</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                  </TablixCells>
+                </TablixRow>
+                <TablixRow>
+                  <Height>5.70291mm</Height>
+                  <TablixCells>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox3">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value>Ay Toplam</Value>
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox3</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>PaleTurquoise</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox34">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value />
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox34</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>PaleTurquoise</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox53">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value />
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox53</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>PaleTurquoise</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox55">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value />
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox55</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>PaleTurquoise</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox9">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value />
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox9</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>PaleTurquoise</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox56">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value />
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox56</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>PaleTurquoise</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox57">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value />
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox57</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>PaleTurquoise</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox58">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value />
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox58</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>PaleTurquoise</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox59">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value>=Sum(Fields!Tutar.Value)</Value>
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Format>#,0.00</Format>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox59</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>PaleTurquoise</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox60">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value />
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox60</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>PaleTurquoise</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox27">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value />
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox27</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>PaleTurquoise</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                  </TablixCells>
+                </TablixRow>
+                <TablixRow>
+                  <Height>0.79375mm</Height>
+                  <TablixCells>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox8">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value />
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox8</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>Orange</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox35">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value />
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox35</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>Orange</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox63">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value />
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox63</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>Orange</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox65">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value />
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox65</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>Orange</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox10">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value />
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox10</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>Orange</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox66">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value />
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox66</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>Orange</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox67">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value />
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox67</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>Orange</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox68">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value />
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox68</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>Orange</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox69">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value>=Sum(Fields!Tutar.Value)</Value>
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Format>#,0.00</Format>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox69</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>Orange</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox70">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value />
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox70</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>Orange</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox28">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value />
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox28</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>Orange</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                  </TablixCells>
+                </TablixRow>
+                <TablixRow>
+                  <Height>6mm</Height>
+                  <TablixCells>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox12">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value />
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox12</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>SlateBlue</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox37">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value />
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox37</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>SlateBlue</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox73">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value />
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox73</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>SlateBlue</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox75">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value />
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox75</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>SlateBlue</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox11">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value />
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox11</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>SlateBlue</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox76">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value />
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox76</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>SlateBlue</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox77">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value />
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox77</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>SlateBlue</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox78">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value />
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Center</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox78</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>SlateBlue</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox79">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value>=Sum(Fields!Tutar.Value)</Value>
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Format>#,0.00</Format>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox79</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>SlateBlue</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox80">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value />
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox80</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>SlateBlue</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox29">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value />
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style>
+                                <TextAlign>Left</TextAlign>
+                              </Style>
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox29</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>SlateBlue</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                  </TablixCells>
+                </TablixRow>
+              </TablixRows>
+            </TablixBody>
+            <TablixColumnHierarchy>
+              <TablixMembers>
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+                <TablixMember />
+              </TablixMembers>
+            </TablixColumnHierarchy>
+            <TablixRowHierarchy>
+              <TablixMembers>
+                <TablixMember>
+                  <TablixHeader>
+                    <Size>20.555mm</Size>
+                    <CellContents>
+                      <Textbox Name="Textbox25">
+                        <CanGrow>true</CanGrow>
+                        <KeepTogether>true</KeepTogether>
+                        <Paragraphs>
+                          <Paragraph>
+                            <TextRuns>
+                              <TextRun>
+                                <Value>Odeme Yil</Value>
+                                <Style>
+                                  <FontStyle>Italic</FontStyle>
+                                  <FontSize>11pt</FontSize>
+                                  <FontWeight>Bold</FontWeight>
+                                  <Color>White</Color>
+                                </Style>
+                              </TextRun>
+                            </TextRuns>
+                            <Style>
+                              <TextAlign>Left</TextAlign>
+                            </Style>
+                          </Paragraph>
+                        </Paragraphs>
+                        <rd:DefaultName>Textbox25</rd:DefaultName>
+                        <Style>
+                          <Border>
+                            <Color>LightGrey</Color>
+                            <Style>Solid</Style>
+                          </Border>
+                          <BackgroundColor>Red</BackgroundColor>
+                          <PaddingLeft>2pt</PaddingLeft>
+                          <PaddingRight>2pt</PaddingRight>
+                          <PaddingTop>2pt</PaddingTop>
+                          <PaddingBottom>2pt</PaddingBottom>
+                        </Style>
+                      </Textbox>
+                    </CellContents>
+                  </TablixHeader>
+                  <TablixMembers>
+                    <TablixMember>
+                      <TablixHeader>
+                        <Size>21.66205mm</Size>
+                        <CellContents>
+                          <Textbox Name="Textbox36">
+                            <CanGrow>true</CanGrow>
+                            <KeepTogether>true</KeepTogether>
+                            <Paragraphs>
+                              <Paragraph>
+                                <TextRuns>
+                                  <TextRun>
+                                    <Value>Odeme Ay</Value>
+                                    <Style>
+                                      <FontStyle>Italic</FontStyle>
+                                      <FontSize>11pt</FontSize>
+                                      <FontWeight>Bold</FontWeight>
+                                      <Color>White</Color>
+                                    </Style>
+                                  </TextRun>
+                                </TextRuns>
+                                <Style>
+                                  <TextAlign>Left</TextAlign>
+                                </Style>
+                              </Paragraph>
+                            </Paragraphs>
+                            <rd:DefaultName>Textbox36</rd:DefaultName>
+                            <Style>
+                              <Border>
+                                <Color>LightGrey</Color>
+                                <Style>Solid</Style>
+                              </Border>
+                              <BackgroundColor>Red</BackgroundColor>
+                              <PaddingLeft>2pt</PaddingLeft>
+                              <PaddingRight>2pt</PaddingRight>
+                              <PaddingTop>2pt</PaddingTop>
+                              <PaddingBottom>2pt</PaddingBottom>
+                            </Style>
+                          </Textbox>
+                        </CellContents>
+                      </TablixHeader>
+                      <TablixMembers>
+                        <TablixMember />
+                      </TablixMembers>
+                    </TablixMember>
+                  </TablixMembers>
+                  <KeepWithGroup>After</KeepWithGroup>
+                </TablixMember>
+                <TablixMember>
+                  <Group Name="Odeme_Yil">
+                    <GroupExpressions>
+                      <GroupExpression>=Fields!Odeme_Yil.Value</GroupExpression>
+                    </GroupExpressions>
+                  </Group>
+                  <SortExpressions>
+                    <SortExpression>
+                      <Value>=Fields!Odeme_Yil.Value</Value>
+                    </SortExpression>
+                  </SortExpressions>
+                  <TablixHeader>
+                    <Size>20.555mm</Size>
+                    <CellContents>
+                      <Textbox Name="Odeme_Yil">
+                        <CanGrow>true</CanGrow>
+                        <KeepTogether>true</KeepTogether>
+                        <Paragraphs>
+                          <Paragraph>
+                            <TextRuns>
+                              <TextRun>
+                                <Value>=Fields!Odeme_Yil.Value</Value>
+                                <Style>
+                                  <FontFamily>Arial</FontFamily>
+                                </Style>
+                              </TextRun>
+                            </TextRuns>
+                            <Style>
+                              <TextAlign>Center</TextAlign>
+                            </Style>
+                          </Paragraph>
+                        </Paragraphs>
+                        <rd:DefaultName>Odeme_Yil</rd:DefaultName>
+                        <Style>
+                          <Border>
+                            <Color>LightGrey</Color>
+                            <Style>Solid</Style>
+                          </Border>
+                          <VerticalAlign>Middle</VerticalAlign>
+                          <PaddingLeft>2pt</PaddingLeft>
+                          <PaddingRight>2pt</PaddingRight>
+                          <PaddingTop>2pt</PaddingTop>
+                          <PaddingBottom>2pt</PaddingBottom>
+                        </Style>
+                      </Textbox>
+                    </CellContents>
+                  </TablixHeader>
+                  <TablixMembers>
+                    <TablixMember>
+                      <Group Name="Odeme_Ay">
+                        <GroupExpressions>
+                          <GroupExpression>=Fields!Odeme_Ay.Value</GroupExpression>
+                        </GroupExpressions>
+                      </Group>
+                      <SortExpressions>
+                        <SortExpression>
+                          <Value>=Fields!OdemeZaman.Value</Value>
+                        </SortExpression>
+                      </SortExpressions>
+                      <TablixHeader>
+                        <Size>21.66205mm</Size>
+                        <CellContents>
+                          <Textbox Name="Odeme_Ay">
+                            <CanGrow>true</CanGrow>
+                            <KeepTogether>true</KeepTogether>
+                            <Paragraphs>
+                              <Paragraph>
+                                <TextRuns>
+                                  <TextRun>
+                                    <Value>=Fields!Odeme_Ay.Value</Value>
+                                    <Style>
+                                      <FontFamily>Arial</FontFamily>
+                                    </Style>
+                                  </TextRun>
+                                </TextRuns>
+                                <Style>
+                                  <TextAlign>Center</TextAlign>
+                                </Style>
+                              </Paragraph>
+                            </Paragraphs>
+                            <rd:DefaultName>Odeme_Ay</rd:DefaultName>
+                            <Style>
+                              <Border>
+                                <Color>LightGrey</Color>
+                                <Style>Solid</Style>
+                              </Border>
+                              <VerticalAlign>Middle</VerticalAlign>
+                              <PaddingLeft>2pt</PaddingLeft>
+                              <PaddingRight>2pt</PaddingRight>
+                              <PaddingTop>2pt</PaddingTop>
+                              <PaddingBottom>2pt</PaddingBottom>
+                            </Style>
+                          </Textbox>
+                        </CellContents>
+                      </TablixHeader>
+                      <TablixMembers>
+                        <TablixMember>
+                          <Group Name="Details" />
+                          <Visibility>
+                            <Hidden>true</Hidden>
+                            <ToggleItem>Odeme_Ay</ToggleItem>
+                          </Visibility>
+                        </TablixMember>
+                        <TablixMember>
+                          <KeepWithGroup>Before</KeepWithGroup>
+                        </TablixMember>
+                      </TablixMembers>
+                      <Visibility>
+                        <ToggleItem>Odeme_Yil</ToggleItem>
+                      </Visibility>
+                    </TablixMember>
+                    <TablixMember>
+                      <TablixHeader>
+                        <Size>21.66205mm</Size>
+                        <CellContents>
+                          <Textbox Name="Textbox62">
+                            <CanGrow>true</CanGrow>
+                            <KeepTogether>true</KeepTogether>
+                            <Paragraphs>
+                              <Paragraph>
+                                <TextRuns>
+                                  <TextRun>
+                                    <Value>Yıl Toplam</Value>
+                                    <Style>
+                                      <FontStyle>Italic</FontStyle>
+                                      <FontFamily>Arial</FontFamily>
+                                      <FontWeight>Bold</FontWeight>
+                                    </Style>
+                                  </TextRun>
+                                </TextRuns>
+                                <Style>
+                                  <TextAlign>Center</TextAlign>
+                                </Style>
+                              </Paragraph>
+                            </Paragraphs>
+                            <rd:DefaultName>Textbox62</rd:DefaultName>
+                            <Style>
+                              <Border>
+                                <Color>LightGrey</Color>
+                                <Style>Solid</Style>
+                              </Border>
+                              <BackgroundColor>Orange</BackgroundColor>
+                              <VerticalAlign>Middle</VerticalAlign>
+                              <PaddingLeft>2pt</PaddingLeft>
+                              <PaddingRight>2pt</PaddingRight>
+                              <PaddingTop>2pt</PaddingTop>
+                              <PaddingBottom>2pt</PaddingBottom>
+                            </Style>
+                          </Textbox>
+                        </CellContents>
+                      </TablixHeader>
+                      <KeepWithGroup>Before</KeepWithGroup>
+                    </TablixMember>
+                  </TablixMembers>
+                </TablixMember>
+                <TablixMember>
+                  <TablixHeader>
+                    <Size>20.555mm</Size>
+                    <CellContents>
+                      <Textbox Name="Textbox71">
+                        <CanGrow>true</CanGrow>
+                        <KeepTogether>true</KeepTogether>
+                        <Paragraphs>
+                          <Paragraph>
+                            <TextRuns>
+                              <TextRun>
+                                <Value>G.Toplam</Value>
+                                <Style>
+                                  <FontFamily>Arial</FontFamily>
+                                  <FontWeight>Bold</FontWeight>
+                                  <Color>White</Color>
+                                </Style>
+                              </TextRun>
+                            </TextRuns>
+                            <Style>
+                              <TextAlign>Center</TextAlign>
+                            </Style>
+                          </Paragraph>
+                        </Paragraphs>
+                        <rd:DefaultName>Textbox71</rd:DefaultName>
+                        <Style>
+                          <Border>
+                            <Color>LightGrey</Color>
+                            <Style>Solid</Style>
+                          </Border>
+                          <BackgroundColor>SlateBlue</BackgroundColor>
+                          <VerticalAlign>Middle</VerticalAlign>
+                          <PaddingLeft>2pt</PaddingLeft>
+                          <PaddingRight>2pt</PaddingRight>
+                          <PaddingTop>2pt</PaddingTop>
+                          <PaddingBottom>2pt</PaddingBottom>
+                        </Style>
+                      </Textbox>
+                    </CellContents>
+                  </TablixHeader>
+                  <TablixMembers>
+                    <TablixMember>
+                      <TablixHeader>
+                        <Size>21.66205mm</Size>
+                        <CellContents>
+                          <Textbox Name="Textbox72">
+                            <CanGrow>true</CanGrow>
+                            <KeepTogether>true</KeepTogether>
+                            <Paragraphs>
+                              <Paragraph>
+                                <TextRuns>
+                                  <TextRun>
+                                    <Value />
+                                    <Style>
+                                      <FontStyle>Italic</FontStyle>
+                                      <FontFamily>Arial</FontFamily>
+                                      <FontWeight>Bold</FontWeight>
+                                      <Color>White</Color>
+                                    </Style>
+                                  </TextRun>
+                                </TextRuns>
+                                <Style>
+                                  <TextAlign>Center</TextAlign>
+                                </Style>
+                              </Paragraph>
+                            </Paragraphs>
+                            <rd:DefaultName>Textbox72</rd:DefaultName>
+                            <Style>
+                              <Border>
+                                <Color>LightGrey</Color>
+                                <Style>Solid</Style>
+                              </Border>
+                              <BackgroundColor>SlateBlue</BackgroundColor>
+                              <VerticalAlign>Middle</VerticalAlign>
+                              <PaddingLeft>2pt</PaddingLeft>
+                              <PaddingRight>2pt</PaddingRight>
+                              <PaddingTop>2pt</PaddingTop>
+                              <PaddingBottom>2pt</PaddingBottom>
+                            </Style>
+                          </Textbox>
+                        </CellContents>
+                      </TablixHeader>
+                    </TablixMember>
+                  </TablixMembers>
+                  <KeepWithGroup>Before</KeepWithGroup>
+                </TablixMember>
+              </TablixMembers>
+            </TablixRowHierarchy>
+            <DataSetName>DataSet1</DataSetName>
+            <Top>0mm</Top>
+            <Left>0.0446mm</Left>
+            <Height>22.4329mm</Height>
+            <Width>418.71514mm</Width>
+            <Style>
+              <Border>
+                <Style>None</Style>
+              </Border>
+            </Style>
+          </Tablix>
+        </ReportItems>
+        <Height>22.43291mm</Height>
+        <Style>
+          <Border>
+            <Style>Solid</Style>
+          </Border>
+        </Style>
+      </Body>
+      <Width>418.75974mm</Width>
+      <Page>
+        <PageHeader>
+          <Height>0.26458mm</Height>
+          <PrintOnFirstPage>true</PrintOnFirstPage>
+          <PrintOnLastPage>true</PrintOnLastPage>
+          <Style>
+            <Border>
+              <Style>None</Style>
+            </Border>
+          </Style>
+        </PageHeader>
+        <PageFooter>
+          <Height>0.26458mm</Height>
+          <PrintOnFirstPage>true</PrintOnFirstPage>
+          <PrintOnLastPage>true</PrintOnLastPage>
+          <Style>
+            <Border>
+              <Style>None</Style>
+            </Border>
+          </Style>
+        </PageFooter>
+        <PageHeight>297mm</PageHeight>
+        <PageWidth>210mm</PageWidth>
+        <LeftMargin>20mm</LeftMargin>
+        <RightMargin>20mm</RightMargin>
+        <TopMargin>20mm</TopMargin>
+        <BottomMargin>20mm</BottomMargin>
+        <ColumnSpacing>0.13cm</ColumnSpacing>
+        <Style />
+      </Page>
+    </ReportSection>
+  </ReportSections>
+  <ReportParameters>
+    <ReportParameter Name="inpOdemeDurum">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>Bekliyor</Value>
+          <Value>Ödendi</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>Durum</Prompt>
+      <ValidValues>
+        <ParameterValues>
+          <ParameterValue>
+            <Value>Bekliyor</Value>
+          </ParameterValue>
+          <ParameterValue>
+            <Value>Ödendi</Value>
+          </ParameterValue>
+        </ParameterValues>
+      </ValidValues>
+      <MultiValue>true</MultiValue>
+    </ReportParameter>
+    <ReportParameter Name="FaturaOzelKod">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <DataSetReference>
+          <DataSetName>FaturaOzelKodDefault</DataSetName>
+          <ValueField>FaturaOzelKodDefault</ValueField>
+        </DataSetReference>
+      </DefaultValue>
+      <AllowBlank>true</AllowBlank>
+      <Prompt>Özel Kod(Fatura)</Prompt>
+      <ValidValues>
+        <DataSetReference>
+          <DataSetName>FaturaOzelKod</DataSetName>
+          <ValueField>FaturaOzelKod</ValueField>
+          <LabelField>FaturaOzelKod</LabelField>
+        </DataSetReference>
+      </ValidValues>
+      <MultiValue>true</MultiValue>
+    </ReportParameter>
+    <ReportParameter Name="BankaFisleriOzelKod">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <DataSetReference>
+          <DataSetName>BankaFisleriOzelKodDefault</DataSetName>
+          <ValueField>BankaFisleriOzelKodDefault</ValueField>
+        </DataSetReference>
+      </DefaultValue>
+      <AllowBlank>true</AllowBlank>
+      <Prompt>Özel Kod (Banka Fişleri)</Prompt>
+      <ValidValues>
+        <DataSetReference>
+          <DataSetName>BankaFisleriOzelKod</DataSetName>
+          <ValueField>BankaFisleriOzelKod</ValueField>
+          <LabelField>BankaFisleriOzelKod</LabelField>
+        </DataSetReference>
+      </ValidValues>
+      <MultiValue>true</MultiValue>
+    </ReportParameter>
+    <ReportParameter Name="StartYear">
+      <DataType>Integer</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>=Year(Today())</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>Ödeme Yıl</Prompt>
+      <ValidValues>
+        <ParameterValues>
+          <ParameterValue>
+            <Value>2020</Value>
+          </ParameterValue>
+          <ParameterValue>
+            <Value>2021</Value>
+          </ParameterValue>
+          <ParameterValue>
+            <Value>2022</Value>
+          </ParameterValue>
+          <ParameterValue>
+            <Value>2023</Value>
+          </ParameterValue>
+          <ParameterValue>
+            <Value>2024</Value>
+          </ParameterValue>
+          <ParameterValue>
+            <Value>2025</Value>
+          </ParameterValue>
+          <ParameterValue>
+            <Value>2026</Value>
+          </ParameterValue>
+          <ParameterValue>
+            <Value>2027</Value>
+          </ParameterValue>
+          <ParameterValue>
+            <Value>2028</Value>
+          </ParameterValue>
+          <ParameterValue>
+            <Value>2029</Value>
+          </ParameterValue>
+          <ParameterValue>
+            <Value>2030</Value>
+          </ParameterValue>
+        </ParameterValues>
+      </ValidValues>
+      <MultiValue>true</MultiValue>
+    </ReportParameter>
+    <ReportParameter Name="inpOdemeAy">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>Ocak</Value>
+          <Value>Şubat</Value>
+          <Value>Mart</Value>
+          <Value>Nisan</Value>
+          <Value>Mayıs</Value>
+          <Value>Haziran</Value>
+          <Value>Temmuz</Value>
+          <Value>Ağustos</Value>
+          <Value>Eylül</Value>
+          <Value>Ekim</Value>
+          <Value>Kasım</Value>
+          <Value>Aralık</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>Ödeme Ay</Prompt>
+      <ValidValues>
+        <ParameterValues>
+          <ParameterValue>
+            <Value>Ocak</Value>
+          </ParameterValue>
+          <ParameterValue>
+            <Value>Şubat</Value>
+          </ParameterValue>
+          <ParameterValue>
+            <Value>Mart</Value>
+          </ParameterValue>
+          <ParameterValue>
+            <Value>Nisan</Value>
+          </ParameterValue>
+          <ParameterValue>
+            <Value>Mayıs</Value>
+          </ParameterValue>
+          <ParameterValue>
+            <Value>Haziran</Value>
+          </ParameterValue>
+          <ParameterValue>
+            <Value>Temmuz</Value>
+          </ParameterValue>
+          <ParameterValue>
+            <Value>Ağustos</Value>
+          </ParameterValue>
+          <ParameterValue>
+            <Value>Eylül</Value>
+          </ParameterValue>
+          <ParameterValue>
+            <Value>Ekim</Value>
+          </ParameterValue>
+          <ParameterValue>
+            <Value>Kasım</Value>
+          </ParameterValue>
+          <ParameterValue>
+            <Value>Aralık</Value>
+          </ParameterValue>
+        </ParameterValues>
+      </ValidValues>
+      <MultiValue>true</MultiValue>
+    </ReportParameter>
+    <ReportParameter Name="CariHesapFisleriOzelKod">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <DataSetReference>
+          <DataSetName>CariHesapFisleriOzelKodDefault</DataSetName>
+          <ValueField>CariHesapFisleriOzelKodDefault</ValueField>
+        </DataSetReference>
+      </DefaultValue>
+      <AllowBlank>true</AllowBlank>
+      <Prompt>Özel Kod (Cari Hesap Fişleri)</Prompt>
+      <ValidValues>
+        <DataSetReference>
+          <DataSetName>CariHesapFisleriOzelKod</DataSetName>
+          <ValueField>CariHesapFisleriOzelKod</ValueField>
+          <LabelField>CariHesapFisleriOzelKod</LabelField>
+        </DataSetReference>
+      </ValidValues>
+      <MultiValue>true</MultiValue>
+    </ReportParameter>
+    <ReportParameter Name="BankaFisleriFaturaOzelKod">
+      <DataType>String</DataType>
+      <DefaultValue>
+        <DataSetReference>
+          <DataSetName>BankaFisleriFaturaOzelKodDefault</DataSetName>
+          <ValueField>BankaFisleriFaturaOzelKodDefault</ValueField>
+        </DataSetReference>
+      </DefaultValue>
+      <AllowBlank>true</AllowBlank>
+      <Prompt>Özel Kod (Banka Fatura)</Prompt>
+      <ValidValues>
+        <DataSetReference>
+          <DataSetName>BankaFisleriFaturaOzelKod</DataSetName>
+          <ValueField>BankaFisleriFaturaOzelKod</ValueField>
+          <LabelField>BankaFisleriFaturaOzelKod</LabelField>
+        </DataSetReference>
+      </ValidValues>
+      <MultiValue>true</MultiValue>
+    </ReportParameter>
+  </ReportParameters>
+  <ReportParametersLayout>
+    <GridLayoutDefinition>
+      <NumberOfColumns>4</NumberOfColumns>
+      <NumberOfRows>2</NumberOfRows>
+      <CellDefinitions>
+        <CellDefinition>
+          <ColumnIndex>1</ColumnIndex>
+          <RowIndex>0</RowIndex>
+          <ParameterName>inpOdemeDurum</ParameterName>
+        </CellDefinition>
+        <CellDefinition>
+          <ColumnIndex>0</ColumnIndex>
+          <RowIndex>1</RowIndex>
+          <ParameterName>StartYear</ParameterName>
+        </CellDefinition>
+        <CellDefinition>
+          <ColumnIndex>1</ColumnIndex>
+          <RowIndex>1</RowIndex>
+          <ParameterName>inpOdemeAy</ParameterName>
+        </CellDefinition>
+        <CellDefinition>
+          <ColumnIndex>2</ColumnIndex>
+          <RowIndex>0</RowIndex>
+          <ParameterName>FaturaOzelKod</ParameterName>
+        </CellDefinition>
+        <CellDefinition>
+          <ColumnIndex>3</ColumnIndex>
+          <RowIndex>0</RowIndex>
+          <ParameterName>BankaFisleriOzelKod</ParameterName>
+        </CellDefinition>
+        <CellDefinition>
+          <ColumnIndex>2</ColumnIndex>
+          <RowIndex>1</RowIndex>
+          <ParameterName>CariHesapFisleriOzelKod</ParameterName>
+        </CellDefinition>
+        <CellDefinition>
+          <ColumnIndex>3</ColumnIndex>
+          <RowIndex>1</RowIndex>
+          <ParameterName>BankaFisleriFaturaOzelKod</ParameterName>
+        </CellDefinition>
+      </CellDefinitions>
+    </GridLayoutDefinition>
+  </ReportParametersLayout>
+  <EmbeddedImages>
+    <EmbeddedImage Name="ÇiçeklerGelişimLogo">
+      <MIMEType>image/jpeg</MIMEType>
+      <ImageData>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</ImageData>
+    </EmbeddedImage>
+  </EmbeddedImages>
+  <rd:ReportUnitType>Mm</rd:ReportUnitType>
+  <rd:ReportID>1b88ec1d-8b3a-4e3a-bc2f-761acd9ae926</rd:ReportID>
+</Report>
