@@ -1,0 +1,1157 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Report MustUnderstand="df" xmlns="http://schemas.microsoft.com/sqlserver/reporting/2016/01/reportdefinition" xmlns:rd="http://schemas.microsoft.com/SQLServer/reporting/reportdesigner" xmlns:df="http://schemas.microsoft.com/sqlserver/reporting/2016/01/reportdefinition/defaultfontfamily">
+  <df:DefaultFontFamily>Segoe UI</df:DefaultFontFamily>
+  <AutoRefresh>0</AutoRefresh>
+  <DataSources>
+    <DataSource Name="DataSource1">
+      <DataSourceReference>/LOGODB</DataSourceReference>
+      <rd:SecurityType>Integrated</rd:SecurityType>
+      <rd:DataSourceID>cb9965b5-84e8-4db2-97dc-620e4e1aeb78</rd:DataSourceID>
+    </DataSource>
+  </DataSources>
+  <DataSets>
+    <DataSet Name="DataSet1">
+      <Query>
+        <DataSourceName>DataSource1</DataSourceName>
+        <QueryParameters>
+          <QueryParameter Name="@StartDate">
+            <Value>=Parameters!StartDate.Value</Value>
+          </QueryParameter>
+          <QueryParameter Name="@EndDate">
+            <Value>=Parameters!EndDate.Value</Value>
+          </QueryParameter>
+        </QueryParameters>
+        <CommandText>---------------- SATIŞ ----------------------
+SELECT '1' as 'SıraNo',  'Satış' as 'Kategori',
+  SPCC.DEFINITION_ AS 'Grup',SPC.DEFINITION_ as 'Tür',
+sum((CASE WHEN STL.VATINC  = 0  THEN  STL.TOTAL * (1 + STL.VAT /100) -  DISTCOST * (1 + STL.VAT /100)  ELSE   STL.TOTAL -  DISTCOST * (1 + STL.VAT /100)  END))AS 'Tutar'
+
+
+
+FROM LG_001_01_STLINE STL 
+INNER JOIN LG_001_01_INVOICE INV ON STL.INVOICEREF = INV.LOGICALREF
+LEFT JOIN LG_001_ITEMS ITM ON STL.STOCKREF = ITM.LOGICALREF
+LEFT JOIN LG_001_SPECODES SPC ON SPC.SPECODE = CASE WHEN STL.LINETYPE = 0 THEN ITM.SPECODE WHEN STL.LINETYPE  = 4 THEN (SELECT TOP 1 SPECODE FROM LG_001_SRVCARD SRV WHERE SRV.LOGICALREF = STL.STOCKREF) END
+ 
+LEFT JOIN LG_001_SPECODES SPCC ON SPCC.SPECODE = ITM.STGRPCODE
+
+WHERE 
+
+INV.BRANCH =  0
+AND INV.CANCELLED = 0 
+AND INV.TRCODE IN (7,8) 
+AND SPC.CODETYPE = 1
+AND   SPC.SPECODETYPE  = CASE WHEN STL.LINETYPE = 0  THEN 1 WHEN STL.LINETYPE = 4 THEN 5 END
+AND SPCC.SPECODETYPE = 0
+AND SPCC.CODETYPE = 4
+AND INV.DATE_ BETWEEN @StartDate AND @EndDate
+GROUP BY  SPCC.DEFINITION_ ,SPC.DEFINITION_
+
+UNION ALL
+
+
+
+
+---------------- SATIŞ İADE  ----------------------
+
+SELECT '2' as 'SıraNo', 'Satış İade (-)' as 'Kategori',
+  SPCC.DEFINITION_ AS 'Grup',SPC.DEFINITION_ as 'Tür',
+SUM((CASE WHEN STL.VATINC  = 0  THEN  STL.TOTAL * (1 + STL.VAT /100) -  DISTCOST * (1 + STL.VAT /100)  ELSE   STL.TOTAL -  DISTCOST * (1 + STL.VAT /100)  END)) AS 'Tutar'
+
+
+
+FROM LG_001_01_STLINE STL 
+INNER JOIN LG_001_01_INVOICE INV ON STL.INVOICEREF = INV.LOGICALREF
+LEFT JOIN LG_001_ITEMS ITM ON STL.STOCKREF = ITM.LOGICALREF
+LEFT JOIN LG_001_SPECODES SPC ON SPC.SPECODE = CASE WHEN STL.LINETYPE = 0 THEN ITM.SPECODE WHEN STL.LINETYPE  = 4 THEN (SELECT TOP 1 SPECODE FROM LG_001_SRVCARD SRV WHERE SRV.LOGICALREF = STL.STOCKREF) END
+ 
+LEFT JOIN LG_001_SPECODES SPCC ON SPCC.SPECODE = ITM.STGRPCODE
+
+WHERE 
+
+INV.BRANCH =  0
+AND INV.CANCELLED = 0 
+AND INV.TRCODE IN (2,3) 
+AND SPC.CODETYPE = 1
+AND   SPC.SPECODETYPE  = CASE WHEN STL.LINETYPE = 0  THEN 1 WHEN STL.LINETYPE = 4 THEN 5 END
+AND SPCC.SPECODETYPE = 0
+AND SPCC.CODETYPE = 4
+AND INV.DATE_ BETWEEN @StartDate AND @EndDate
+GROUP BY  SPCC.DEFINITION_ ,SPC.DEFINITION_
+
+
+UNION ALL
+--------------   NET SATIŞ TOPLAMLARI -------------
+SELECT '3' as 'SıraNo',  'Net Satış Toplamları' as 'Kategori',
+CASE WHEN INV.TRCODE IN (7,8)  THEN  'Satış Toplamı'  else 'İade Toplamı' end AS 'Grup',
+  CASE WHEN INV.TRCODE IN (7,8)  THEN  'Satış'  else 'İade' end as 'Tür',
+case when INV.TRCODE IN (7,8) then sum((CASE WHEN STL.VATINC  = 0  THEN  STL.TOTAL * (1 + STL.VAT /100) -  DISTCOST * (1 + STL.VAT /100)  ELSE   STL.TOTAL -  DISTCOST * (1 + STL.VAT /100)  END))   when  INV.TRCODE IN (2,3)   then -1 * sum((CASE WHEN STL.VATINC  = 0  THEN  STL.TOTAL * (1 + STL.VAT /100) -  DISTCOST * (1 + STL.VAT /100)  ELSE   STL.TOTAL -  DISTCOST * (1 + STL.VAT /100)  END)) end   AS 'Tutar'
+
+
+
+FROM LG_001_01_STLINE STL 
+INNER JOIN LG_001_01_INVOICE INV ON STL.INVOICEREF = INV.LOGICALREF
+LEFT JOIN LG_001_ITEMS ITM ON STL.STOCKREF = ITM.LOGICALREF
+LEFT JOIN LG_001_SPECODES SPC ON SPC.SPECODE = CASE WHEN STL.LINETYPE = 0 THEN ITM.SPECODE WHEN STL.LINETYPE  = 4 THEN (SELECT TOP 1 SPECODE FROM LG_001_SRVCARD SRV WHERE SRV.LOGICALREF = STL.STOCKREF) END
+ 
+LEFT JOIN LG_001_SPECODES SPCC ON SPCC.SPECODE = ITM.STGRPCODE
+
+WHERE 
+
+INV.BRANCH =  0
+AND INV.CANCELLED = 0 
+AND INV.TRCODE IN (2,3,7,8) 
+AND SPC.CODETYPE = 1
+AND   SPC.SPECODETYPE  = CASE WHEN STL.LINETYPE = 0  THEN 1 WHEN STL.LINETYPE = 4 THEN 5 END
+AND SPCC.SPECODETYPE = 0
+AND SPCC.CODETYPE = 4
+AND INV.DATE_ BETWEEN @StartDate AND @EndDate
+GROUP BY INV.TRCODE
+
+UNION ALL
+---------------- SATIŞ MALİYET  ----------------------
+SELECT '4' as 'SıraNo',
+'Satış Maliyet (-)' as 'Kategori',
+  SPCC.DEFINITION_   AS 'Grup',SPC.DEFINITION_ as 'Tür',
+SUM((STL.OUTCOST * STL.AMOUNT) * (1 + STL.VAT /100)) As 'Tutar'
+
+
+
+FROM LG_001_01_STLINE STL 
+INNER JOIN LG_001_01_INVOICE INV ON STL.INVOICEREF = INV.LOGICALREF
+LEFT JOIN LG_001_ITEMS ITM ON STL.STOCKREF = ITM.LOGICALREF
+LEFT JOIN LG_001_SPECODES SPC ON SPC.SPECODE = CASE WHEN STL.LINETYPE = 0 THEN ITM.SPECODE WHEN STL.LINETYPE  = 4 THEN (SELECT TOP 1 SPECODE FROM LG_001_SRVCARD SRV WHERE SRV.LOGICALREF = STL.STOCKREF) END
+ 
+LEFT JOIN LG_001_SPECODES SPCC ON SPCC.SPECODE = ITM.STGRPCODE
+
+WHERE 
+
+INV.BRANCH =  0
+AND INV.CANCELLED = 0 
+AND INV.TRCODE IN (7,8) 
+AND SPC.CODETYPE = 1
+AND   SPC.SPECODETYPE  = CASE WHEN STL.LINETYPE = 0  THEN 1 WHEN STL.LINETYPE = 4 THEN 5 END
+AND SPCC.SPECODETYPE = 0
+AND SPCC.CODETYPE = 4
+AND INV.DATE_ BETWEEN @StartDate AND @EndDate
+GROUP BY SPCC.DEFINITION_ ,SPC.DEFINITION_
+
+UNION ALL
+------------------ SATIŞ İADE MALİYET ------------------------
+SELECT '5' as 'SıraNo',
+'Satış İade Maliyet (-)' as 'Kategori',
+  SPCC.DEFINITION_   AS 'Grup',SPC.DEFINITION_ as 'Tür',
+SUM((STL.RETCOST * STL.AMOUNT) * (1 + STL.VAT /100)) As 'Tutar'
+
+
+
+FROM LG_001_01_STLINE STL 
+INNER JOIN LG_001_01_INVOICE INV ON STL.INVOICEREF = INV.LOGICALREF
+LEFT JOIN LG_001_ITEMS ITM ON STL.STOCKREF = ITM.LOGICALREF
+LEFT JOIN LG_001_SPECODES SPC ON SPC.SPECODE = CASE WHEN STL.LINETYPE = 0 THEN ITM.SPECODE WHEN STL.LINETYPE  = 4 THEN (SELECT TOP 1 SPECODE FROM LG_001_SRVCARD SRV WHERE SRV.LOGICALREF = STL.STOCKREF) END
+ 
+LEFT JOIN LG_001_SPECODES SPCC ON SPCC.SPECODE = ITM.STGRPCODE
+
+WHERE 
+
+INV.BRANCH =  0
+AND INV.CANCELLED = 0 
+AND INV.TRCODE IN (2,3) 
+AND SPC.CODETYPE = 1
+AND   SPC.SPECODETYPE  = CASE WHEN STL.LINETYPE = 0  THEN 1 WHEN STL.LINETYPE = 4 THEN 5 END
+AND SPCC.SPECODETYPE = 0
+AND SPCC.CODETYPE = 4
+AND INV.DATE_ BETWEEN @StartDate AND @EndDate
+GROUP BY SPCC.DEFINITION_ ,SPC.DEFINITION_
+
+UNION ALL
+---------------- GİDERLER (-) ----------------------
+
+SELECT '6' as 'SıraNo',
+'Giderler (-)' as 'Kategori',
+
+(select TOP 1 DEFINITION_ from LG_001_SPECODES SPC WHERE SPC.SPECODETYPE  = 4 AND SPC.CODETYPE = 1 AND SPC.SPECODE = (select top 1 SRV.SPECODE from LG_001_SRVCARD SRV WHERE SRV.LOGICALREF = STL.STOCKREF))  AS 'Grup',
+--(select TOP 1 DEFINITION_ from LG_001_SPECODES SPC WHERE SPC.SPECODETYPE  = 4 AND SPC.CODETYPE = 1 AND SPC.SPECODE = (select top 1 SRV.SPECODE2 from LG_001_SRVCARD SRV WHERE SRV.LOGICALREF = STL.STOCKREF))  AS '2.Gider Kategori',
+(select TOP 1 DEFINITION_ from LG_001_SPECODES SPC WHERE SPC.SPECODETYPE  = 4 AND SPC.CODETYPE = 1 AND SPC.SPECODE = (select top 1 SRV.SPECODE3 from LG_001_SRVCARD SRV WHERE SRV.LOGICALREF = STL.STOCKREF))  AS 'Tür',
+--(select top 1 SRV.DEFINITION_ from LG_001_SRVCARD SRV WHERE SRV.LOGICALREF = STL.STOCKREF) AS '4.Gider Kalemi',
+SUM(CASE WHEN STL.VATINC  = 0  THEN  STL.TOTAL * (1 + STL.VAT /100) -  DISTCOST * (1 + STL.VAT /100)  ELSE   STL.TOTAL -  DISTCOST * (1 + STL.VAT /100)  END) AS 'Tutar'
+
+
+
+FROM LG_001_01_INVOICE INV INNER JOIN LG_001_01_STLINE STL ON INV.LOGICALREF = STL.INVOICEREF 
+AND INV.TRCODE = 4
+AND INV.CANCELLED = 0
+AND INV.BRANCH = 0 
+AND STL.STOCKREF &lt;&gt;0
+AND INV.DATE_ BETWEEN  @StartDate AND @EndDate
+AND STL.TOTAL &gt; 0
+GROUP BY 
+STL.STOCKREF
+
+
+UNION ALL
+
+
+----------- VERİLEN HİZMET -----------------------------
+
+SELECT '7' as 'SıraNo', 'Hizmet Satış' as 'Kategori',
+'Verilen Hizmet'  AS 'Grup',SPC.DEFINITION_ as 'Tür',
+sum((CASE WHEN STL.VATINC  = 0  THEN  STL.TOTAL * (1 + STL.VAT /100) -  DISTCOST * (1 + STL.VAT /100)  ELSE   STL.TOTAL -  DISTCOST * (1 + STL.VAT /100)  END)) AS 'Tutar'
+
+
+
+FROM LG_001_01_STLINE STL 
+INNER JOIN LG_001_01_INVOICE INV ON STL.INVOICEREF = INV.LOGICALREF
+LEFT JOIN LG_001_ITEMS ITM ON STL.STOCKREF = ITM.LOGICALREF
+LEFT JOIN LG_001_SPECODES SPC ON SPC.SPECODE = CASE WHEN STL.LINETYPE = 0 THEN ITM.SPECODE WHEN STL.LINETYPE  = 4 THEN (SELECT TOP 1 SPECODE FROM LG_001_SRVCARD SRV WHERE SRV.LOGICALREF = STL.STOCKREF) END
+ 
+LEFT JOIN LG_001_SPECODES SPCC ON SPCC.SPECODE = ITM.STGRPCODE
+
+WHERE 
+
+INV.BRANCH =  0
+AND INV.CANCELLED = 0 
+AND INV.TRCODE IN (9) 
+AND SPC.CODETYPE = 1
+AND   SPC.SPECODETYPE  = CASE WHEN STL.LINETYPE = 0  THEN 1 WHEN STL.LINETYPE = 4 THEN 5 END
+AND SPCC.SPECODETYPE = 0
+AND SPCC.CODETYPE = 4
+AND INV.DATE_ BETWEEN @StartDate AND @EndDate
+GROUP BY SPCC.DEFINITION_ ,SPC.DEFINITION_
+
+UNION ALL
+
+------------- Hizmet Toplamları --------------------
+
+
+SELECT '8' as 'SıraNo',
+'Hizmet Toplamları' as 'Kategori',
+
+Case when INV.TRCODE = 4  THEN  'Alınan Hizmet Toplamları' else 'Verilen Hizmet Toplamları' end AS 'Grup',
+
+Case when INV.TRCODE = 4  THEN  'Alınan Hizmetler' else 'Verilen Hizmetler' end AS 'Tür',
+--(select top 1 SRV.DEFINITION_ from LG_001_SRVCARD SRV WHERE SRV.LOGICALREF = STL.STOCKREF) AS '4.Gider Kalemi',
+CASE WHEN INV.TRCODE = 4 THEN SUM(CASE WHEN STL.VATINC  = 0  THEN  STL.TOTAL * (1 + STL.VAT /100) -  DISTCOST * (1 + STL.VAT /100)  ELSE   STL.TOTAL -  DISTCOST * (1 + STL.VAT /100)  END) WHEN  INV.TRCODE =9 THEN -1 * SUM(CASE WHEN STL.VATINC  = 0  THEN  STL.TOTAL * (1 + STL.VAT /100) -  DISTCOST * (1 + STL.VAT /100)  ELSE   STL.TOTAL -  DISTCOST * (1 + STL.VAT /100)  END) END AS 'Tutar'
+
+
+
+FROM LG_001_01_INVOICE INV INNER JOIN LG_001_01_STLINE STL ON INV.LOGICALREF = STL.INVOICEREF 
+AND INV.TRCODE IN ( 4,9)
+AND INV.CANCELLED = 0
+AND INV.BRANCH = 0 
+AND STL.STOCKREF &lt;&gt;0
+AND INV.DATE_ BETWEEN @StartDate AND @EndDate
+AND STL.TOTAL &gt; 0
+GROUP BY 
+INV.TRCODE
+
+
+UNION ALL
+
+
+
+---------------- BRÜT SATIŞ KARI  VEYA ZARARI  ----------------------
+SELECT '9' as 'SıraNo',
+'Brüt Satış Kâr veya Zarar' as 'Kategori',
+   SPCC.DEFINITION_  AS 'Grup',SPC.DEFINITION_ as 'Tür',
+SUM((CASE WHEN STL.VATINC  = 0  THEN  STL.TOTAL * (1 + STL.VAT /100) -  DISTCOST * (1 + STL.VAT /100)  ELSE   STL.TOTAL -  DISTCOST * (1 + STL.VAT /100)  END) - (STL.OUTCOST * STL.AMOUNT) * (1 + STL.VAT /100)) As 'Tutar'
+
+
+
+FROM LG_001_01_STLINE STL 
+INNER JOIN LG_001_01_INVOICE INV ON STL.INVOICEREF = INV.LOGICALREF
+LEFT JOIN LG_001_ITEMS ITM ON STL.STOCKREF = ITM.LOGICALREF
+LEFT JOIN LG_001_SPECODES SPC ON SPC.SPECODE = CASE WHEN STL.LINETYPE = 0 THEN ITM.SPECODE WHEN STL.LINETYPE  = 4 THEN (SELECT TOP 1 SPECODE FROM LG_001_SRVCARD SRV WHERE SRV.LOGICALREF = STL.STOCKREF) END
+ 
+LEFT JOIN LG_001_SPECODES SPCC ON SPCC.SPECODE = ITM.STGRPCODE
+
+WHERE 
+
+INV.BRANCH =  0
+AND INV.CANCELLED = 0 
+AND INV.TRCODE IN (7,8) 
+AND SPC.CODETYPE = 1
+AND   SPC.SPECODETYPE  = CASE WHEN STL.LINETYPE = 0  THEN 1 WHEN STL.LINETYPE = 4 THEN 5 END
+AND SPCC.SPECODETYPE = 0
+AND SPCC.CODETYPE = 4
+AND INV.DATE_ BETWEEN @StartDate AND @EndDate
+GROUP BY SPCC.DEFINITION_ ,SPC.DEFINITION_
+
+
+UNION ALL
+
+SELECT '9' as 'SıraNo',
+'Brüt Satış Kâr veya Zarar' as 'Kategori',
+   SPCC.DEFINITION_  AS 'Grup',SPC.DEFINITION_ as 'Tür',
+SUM((CASE WHEN STL.VATINC  = 0  THEN  STL.TOTAL * (1 + STL.VAT /100) -  DISTCOST * (1 + STL.VAT /100)  ELSE   STL.TOTAL -  DISTCOST * (1 + STL.VAT /100)  END) - (STL.OUTCOST * STL.AMOUNT) * (1 + STL.VAT /100)) * -1 As 'Tutar'
+
+
+
+FROM LG_001_01_STLINE STL 
+INNER JOIN LG_001_01_INVOICE INV ON STL.INVOICEREF = INV.LOGICALREF
+LEFT JOIN LG_001_ITEMS ITM ON STL.STOCKREF = ITM.LOGICALREF
+LEFT JOIN LG_001_SPECODES SPC ON SPC.SPECODE = CASE WHEN STL.LINETYPE = 0 THEN ITM.SPECODE WHEN STL.LINETYPE  = 4 THEN (SELECT TOP 1 SPECODE FROM LG_001_SRVCARD SRV WHERE SRV.LOGICALREF = STL.STOCKREF) END
+ 
+LEFT JOIN LG_001_SPECODES SPCC ON SPCC.SPECODE = ITM.STGRPCODE
+
+WHERE 
+
+INV.BRANCH =  0
+AND INV.CANCELLED = 0 
+AND INV.TRCODE IN (2,3) 
+AND SPC.CODETYPE = 1
+AND   SPC.SPECODETYPE  = CASE WHEN STL.LINETYPE = 0  THEN 1 WHEN STL.LINETYPE = 4 THEN 5 END
+AND SPCC.SPECODETYPE = 0
+AND SPCC.CODETYPE = 4
+AND INV.DATE_ BETWEEN @StartDate AND @EndDate
+GROUP BY SPCC.DEFINITION_ ,SPC.DEFINITION_
+
+order by SıraNo asc</CommandText>
+        <rd:UseGenericDesigner>true</rd:UseGenericDesigner>
+      </Query>
+      <Fields>
+        <Field Name="SıraNo">
+          <DataField>SıraNo</DataField>
+          <rd:TypeName>System.String</rd:TypeName>
+        </Field>
+        <Field Name="Kategori">
+          <DataField>Kategori</DataField>
+          <rd:TypeName>System.String</rd:TypeName>
+        </Field>
+        <Field Name="Grup">
+          <DataField>Grup</DataField>
+          <rd:TypeName>System.String</rd:TypeName>
+        </Field>
+        <Field Name="Tür">
+          <DataField>Tür</DataField>
+          <rd:TypeName>System.String</rd:TypeName>
+        </Field>
+        <Field Name="Tutar">
+          <DataField>Tutar</DataField>
+          <rd:TypeName>System.Double</rd:TypeName>
+        </Field>
+      </Fields>
+    </DataSet>
+  </DataSets>
+  <ReportSections>
+    <ReportSection>
+      <Body>
+        <ReportItems>
+          <Textbox Name="ReportTitle">
+            <CanGrow>true</CanGrow>
+            <KeepTogether>true</KeepTogether>
+            <Paragraphs>
+              <Paragraph>
+                <TextRuns>
+                  <TextRun>
+                    <Value>Gelir Tablosu</Value>
+                    <Style>
+                      <FontStyle>Italic</FontStyle>
+                      <FontFamily>Segoe UI Light</FontFamily>
+                      <FontSize>28pt</FontSize>
+                      <FontWeight>Bold</FontWeight>
+                      <Color>White</Color>
+                    </Style>
+                  </TextRun>
+                </TextRuns>
+                <Style>
+                  <TextAlign>Center</TextAlign>
+                </Style>
+              </Paragraph>
+            </Paragraphs>
+            <rd:WatermarkTextbox>Title</rd:WatermarkTextbox>
+            <rd:DefaultName>ReportTitle</rd:DefaultName>
+            <Top>0mm</Top>
+            <Height>20.10833mm</Height>
+            <Width>187.87751mm</Width>
+            <Style>
+              <Border>
+                <Style>None</Style>
+              </Border>
+              <BackgroundColor>Tomato</BackgroundColor>
+              <VerticalAlign>Middle</VerticalAlign>
+              <PaddingLeft>2pt</PaddingLeft>
+              <PaddingRight>2pt</PaddingRight>
+              <PaddingTop>2pt</PaddingTop>
+              <PaddingBottom>2pt</PaddingBottom>
+            </Style>
+          </Textbox>
+          <Tablix Name="Tablix5">
+            <TablixBody>
+              <TablixColumns>
+                <TablixColumn>
+                  <Width>58.02936mm</Width>
+                </TablixColumn>
+                <TablixColumn>
+                  <Width>27.30188mm</Width>
+                </TablixColumn>
+              </TablixColumns>
+              <TablixRows>
+                <TablixRow>
+                  <Height>6mm</Height>
+                  <TablixCells>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox91">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value>Tür</Value>
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox91</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>Tomato</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox95">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value>Tutar</Value>
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>White</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox95</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>Tomato</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                  </TablixCells>
+                </TablixRow>
+                <TablixRow>
+                  <Height>6mm</Height>
+                  <TablixCells>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Tür">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value>=Fields!Tür.Value</Value>
+                                  <Style>
+                                    <Color>=iif(Fields!Kategori.Value = "Net Satış Toplamları" , "White",
+
+iif(Fields!Kategori.Value = "Hizmet Toplamları", "White","Black"))</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Tür</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>=iif(Fields!Kategori.Value = "Net Satış Toplamları" , "Red",
+iif(Fields!Kategori.Value = "Hizmet Toplamları", "Red","WHITE"))</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Tutar">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value>=Fields!Tutar.Value</Value>
+                                  <Style>
+                                    <FontFamily>Arial</FontFamily>
+                                    <Format>#,0.00</Format>
+                                    <Color>=iif(Fields!Kategori.Value = "Net Satış Toplamları" , "White",
+
+iif(Fields!Kategori.Value = "Hizmet Toplamları", "White","Black"))</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Tutar</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>=iif(Fields!Kategori.Value = "Net Satış Toplamları" , "Red",
+iif(Fields!Kategori.Value = "Hizmet Toplamları", "Red","WHITE"))</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                  </TablixCells>
+                </TablixRow>
+                <TablixRow>
+                  <Height>6mm</Height>
+                  <TablixCells>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox106">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value>Toplam</Value>
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Color>=iif(Fields!Kategori.Value = "Net Satış Toplamları" , "White",
+
+iif(Fields!Kategori.Value = "Hizmet Toplamları", "White","Black"))</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox106</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>=iif(Fields!Kategori.Value = "Net Satış Toplamları" , "Red",
+iif(Fields!Kategori.Value = "Hizmet Toplamları", "Red","WHITE"))</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox107">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value>=Sum(Fields!Tutar.Value)</Value>
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Format>#,0.00</Format>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox107</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>=iif(Fields!Kategori.Value = "Net Satış Toplamları" , "Red",
+iif(Fields!Kategori.Value = "Hizmet Toplamları", "Red","WHITE"))</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                  </TablixCells>
+                </TablixRow>
+                <TablixRow>
+                  <Height>6mm</Height>
+                  <TablixCells>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox110">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value />
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox110</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>=iif(Fields!Kategori.Value = "Net Satış Toplamları" , "Red",
+iif(Fields!Kategori.Value = "Hizmet Toplamları", "Red","WHITE"))</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                    <TablixCell>
+                      <CellContents>
+                        <Textbox Name="Textbox111">
+                          <CanGrow>true</CanGrow>
+                          <KeepTogether>true</KeepTogether>
+                          <Paragraphs>
+                            <Paragraph>
+                              <TextRuns>
+                                <TextRun>
+                                  <Value>=Sum(Fields!Tutar.Value)</Value>
+                                  <Style>
+                                    <FontStyle>Italic</FontStyle>
+                                    <FontFamily>Arial</FontFamily>
+                                    <FontWeight>Bold</FontWeight>
+                                    <Format>#,0.00</Format>
+                                    <Color>=iif(Fields!Kategori.Value = "Net Satış Toplamları" , "White",
+
+iif(Fields!Kategori.Value = "Hizmet Toplamları", "White","Black"))</Color>
+                                  </Style>
+                                </TextRun>
+                              </TextRuns>
+                              <Style />
+                            </Paragraph>
+                          </Paragraphs>
+                          <rd:DefaultName>Textbox111</rd:DefaultName>
+                          <Style>
+                            <Border>
+                              <Color>LightGrey</Color>
+                              <Style>Solid</Style>
+                            </Border>
+                            <BackgroundColor>=iif(Fields!Kategori.Value = "Net Satış Toplamları" , "Red",
+iif(Fields!Kategori.Value = "Hizmet Toplamları", "Red","WHITE"))</BackgroundColor>
+                            <PaddingLeft>2pt</PaddingLeft>
+                            <PaddingRight>2pt</PaddingRight>
+                            <PaddingTop>2pt</PaddingTop>
+                            <PaddingBottom>2pt</PaddingBottom>
+                          </Style>
+                        </Textbox>
+                      </CellContents>
+                    </TablixCell>
+                  </TablixCells>
+                </TablixRow>
+              </TablixRows>
+            </TablixBody>
+            <TablixColumnHierarchy>
+              <TablixMembers>
+                <TablixMember />
+                <TablixMember />
+              </TablixMembers>
+            </TablixColumnHierarchy>
+            <TablixRowHierarchy>
+              <TablixMembers>
+                <TablixMember>
+                  <TablixHeader>
+                    <Size>44.02354mm</Size>
+                    <CellContents>
+                      <Textbox Name="Textbox102">
+                        <CanGrow>true</CanGrow>
+                        <KeepTogether>true</KeepTogether>
+                        <Paragraphs>
+                          <Paragraph>
+                            <TextRuns>
+                              <TextRun>
+                                <Value>Kategori</Value>
+                                <Style>
+                                  <FontStyle>Italic</FontStyle>
+                                  <FontFamily>Arial</FontFamily>
+                                  <FontWeight>Bold</FontWeight>
+                                  <Color>White</Color>
+                                </Style>
+                              </TextRun>
+                            </TextRuns>
+                            <Style />
+                          </Paragraph>
+                        </Paragraphs>
+                        <rd:DefaultName>Textbox102</rd:DefaultName>
+                        <Style>
+                          <Border>
+                            <Color>LightGrey</Color>
+                            <Style>Solid</Style>
+                          </Border>
+                          <BackgroundColor>Tomato</BackgroundColor>
+                          <PaddingLeft>2pt</PaddingLeft>
+                          <PaddingRight>2pt</PaddingRight>
+                          <PaddingTop>2pt</PaddingTop>
+                          <PaddingBottom>2pt</PaddingBottom>
+                        </Style>
+                      </Textbox>
+                    </CellContents>
+                  </TablixHeader>
+                  <TablixMembers>
+                    <TablixMember>
+                      <TablixHeader>
+                        <Size>58.52272mm</Size>
+                        <CellContents>
+                          <Textbox Name="Textbox100">
+                            <CanGrow>true</CanGrow>
+                            <KeepTogether>true</KeepTogether>
+                            <Paragraphs>
+                              <Paragraph>
+                                <TextRuns>
+                                  <TextRun>
+                                    <Value>Grup</Value>
+                                    <Style>
+                                      <FontStyle>Italic</FontStyle>
+                                      <FontFamily>Arial</FontFamily>
+                                      <FontWeight>Bold</FontWeight>
+                                      <Color>White</Color>
+                                    </Style>
+                                  </TextRun>
+                                </TextRuns>
+                                <Style />
+                              </Paragraph>
+                            </Paragraphs>
+                            <rd:DefaultName>Textbox100</rd:DefaultName>
+                            <Style>
+                              <Border>
+                                <Color>LightGrey</Color>
+                                <Style>Solid</Style>
+                              </Border>
+                              <BackgroundColor>Tomato</BackgroundColor>
+                              <PaddingLeft>2pt</PaddingLeft>
+                              <PaddingRight>2pt</PaddingRight>
+                              <PaddingTop>2pt</PaddingTop>
+                              <PaddingBottom>2pt</PaddingBottom>
+                            </Style>
+                          </Textbox>
+                        </CellContents>
+                      </TablixHeader>
+                      <TablixMembers>
+                        <TablixMember />
+                      </TablixMembers>
+                    </TablixMember>
+                  </TablixMembers>
+                  <KeepWithGroup>After</KeepWithGroup>
+                </TablixMember>
+                <TablixMember>
+                  <Group Name="Kategori">
+                    <GroupExpressions>
+                      <GroupExpression>=Fields!Kategori.Value</GroupExpression>
+                    </GroupExpressions>
+                  </Group>
+                  <SortExpressions>
+                    <SortExpression>
+                      <Value>=Fields!SıraNo.Value</Value>
+                    </SortExpression>
+                  </SortExpressions>
+                  <TablixHeader>
+                    <Size>44.02354mm</Size>
+                    <CellContents>
+                      <Textbox Name="Kategori">
+                        <CanGrow>true</CanGrow>
+                        <KeepTogether>true</KeepTogether>
+                        <Paragraphs>
+                          <Paragraph>
+                            <TextRuns>
+                              <TextRun>
+                                <Value>=Fields!Kategori.Value</Value>
+                                <Style>
+                                  <FontFamily>Arial</FontFamily>
+                                  <FontWeight>Bold</FontWeight>
+                                  <Color>=iif(Fields!Kategori.Value = "Net Satış Toplamları" , "White","Black")</Color>
+                                </Style>
+                              </TextRun>
+                            </TextRuns>
+                            <Style>
+                              <TextAlign>Center</TextAlign>
+                            </Style>
+                          </Paragraph>
+                        </Paragraphs>
+                        <rd:DefaultName>Kategori</rd:DefaultName>
+                        <Style>
+                          <Border>
+                            <Color>LightGrey</Color>
+                            <Style>Solid</Style>
+                          </Border>
+                          <BackgroundColor>=iif(Fields!Kategori.Value = "Net Satış Toplamları" , "Red",
+iif(Fields!Kategori.Value = "Hizmet Toplamları" , "Red",
+iif(Fields!Kategori.Value = "Satış" , "Gold",
+iif(Fields!Kategori.Value = "Satış İade (-)" , "Gold",
+iif(Fields!Kategori.Value = "Giderler (-)" , "Gold",
+iif(Fields!Kategori.Value = "Hizmet Satış" , "Gold",
+
+iif(Fields!Kategori.Value = "Hizmet Toplamları", "Red","WHITE")))))))</BackgroundColor>
+                          <VerticalAlign>Middle</VerticalAlign>
+                          <PaddingLeft>2pt</PaddingLeft>
+                          <PaddingRight>2pt</PaddingRight>
+                          <PaddingTop>2pt</PaddingTop>
+                          <PaddingBottom>2pt</PaddingBottom>
+                        </Style>
+                      </Textbox>
+                    </CellContents>
+                  </TablixHeader>
+                  <TablixMembers>
+                    <TablixMember>
+                      <Group Name="Grup">
+                        <GroupExpressions>
+                          <GroupExpression>=Fields!Grup.Value</GroupExpression>
+                        </GroupExpressions>
+                      </Group>
+                      <SortExpressions>
+                        <SortExpression>
+                          <Value>=Fields!Grup.Value</Value>
+                        </SortExpression>
+                      </SortExpressions>
+                      <TablixHeader>
+                        <Size>58.52272mm</Size>
+                        <CellContents>
+                          <Textbox Name="Grup">
+                            <CanGrow>true</CanGrow>
+                            <KeepTogether>true</KeepTogether>
+                            <Paragraphs>
+                              <Paragraph>
+                                <TextRuns>
+                                  <TextRun>
+                                    <Value>=Fields!Grup.Value</Value>
+                                    <Style>
+                                      <FontFamily>Arial</FontFamily>
+                                      <Color>=iif(Fields!Kategori.Value = "Net Satış Toplamları" , "White",
+
+iif(Fields!Kategori.Value = "Hizmet Toplamları", "White","Black"))</Color>
+                                    </Style>
+                                  </TextRun>
+                                </TextRuns>
+                                <Style>
+                                  <TextAlign>Center</TextAlign>
+                                </Style>
+                              </Paragraph>
+                            </Paragraphs>
+                            <rd:DefaultName>Grup</rd:DefaultName>
+                            <Style>
+                              <Border>
+                                <Color>LightGrey</Color>
+                                <Style>Solid</Style>
+                              </Border>
+                              <BackgroundColor>=iif(Fields!Kategori.Value = "Net Satış Toplamları" , "Red",
+iif(Fields!Kategori.Value = "Hizmet Toplamları", "Red","WHITE"))</BackgroundColor>
+                              <VerticalAlign>Middle</VerticalAlign>
+                              <PaddingLeft>2pt</PaddingLeft>
+                              <PaddingRight>2pt</PaddingRight>
+                              <PaddingTop>2pt</PaddingTop>
+                              <PaddingBottom>2pt</PaddingBottom>
+                            </Style>
+                          </Textbox>
+                        </CellContents>
+                      </TablixHeader>
+                      <TablixMembers>
+                        <TablixMember>
+                          <Group Name="Details" />
+                          <Visibility>
+                            <Hidden>true</Hidden>
+                            <ToggleItem>Grup</ToggleItem>
+                          </Visibility>
+                        </TablixMember>
+                        <TablixMember>
+                          <KeepWithGroup>Before</KeepWithGroup>
+                        </TablixMember>
+                      </TablixMembers>
+                      <Visibility>
+                        <Hidden>true</Hidden>
+                        <ToggleItem>Kategori</ToggleItem>
+                      </Visibility>
+                    </TablixMember>
+                    <TablixMember>
+                      <TablixHeader>
+                        <Size>58.52272mm</Size>
+                        <CellContents>
+                          <Textbox Name="Textbox109">
+                            <CanGrow>true</CanGrow>
+                            <KeepTogether>true</KeepTogether>
+                            <Paragraphs>
+                              <Paragraph>
+                                <TextRuns>
+                                  <TextRun>
+                                    <Value>Toplam</Value>
+                                    <Style>
+                                      <FontStyle>Italic</FontStyle>
+                                      <FontFamily>Arial</FontFamily>
+                                      <FontWeight>Bold</FontWeight>
+                                      <Color>=iif(Fields!Kategori.Value = "Net Satış Toplamları" , "White",
+
+iif(Fields!Kategori.Value = "Hizmet Toplamları", "White","Black"))</Color>
+                                    </Style>
+                                  </TextRun>
+                                </TextRuns>
+                                <Style />
+                              </Paragraph>
+                            </Paragraphs>
+                            <rd:DefaultName>Textbox109</rd:DefaultName>
+                            <Style>
+                              <Border>
+                                <Color>LightGrey</Color>
+                                <Style>Solid</Style>
+                              </Border>
+                              <BackgroundColor>=iif(Fields!Kategori.Value = "Net Satış Toplamları" , "Red",
+
+
+iif(Fields!Kategori.Value = "Hizmet Toplamları", "Red","WHITE"))</BackgroundColor>
+                              <PaddingLeft>2pt</PaddingLeft>
+                              <PaddingRight>2pt</PaddingRight>
+                              <PaddingTop>2pt</PaddingTop>
+                              <PaddingBottom>2pt</PaddingBottom>
+                            </Style>
+                          </Textbox>
+                        </CellContents>
+                      </TablixHeader>
+                      <KeepWithGroup>Before</KeepWithGroup>
+                    </TablixMember>
+                  </TablixMembers>
+                </TablixMember>
+              </TablixMembers>
+            </TablixRowHierarchy>
+            <DataSetName>DataSet1</DataSetName>
+            <Top>20.81389mm</Top>
+            <Left>0mm</Left>
+            <Height>24mm</Height>
+            <Width>187.8775mm</Width>
+            <ZIndex>1</ZIndex>
+            <Style>
+              <Border>
+                <Style>None</Style>
+              </Border>
+            </Style>
+          </Tablix>
+          <Textbox Name="Textbox1">
+            <CanGrow>true</CanGrow>
+            <KeepTogether>true</KeepTogether>
+            <Paragraphs>
+              <Paragraph>
+                <TextRuns>
+                  <TextRun>
+                    <Value xml:space="preserve"> </Value>
+                    <Style>
+                      <FontStyle>Italic</FontStyle>
+                      <FontWeight>Bold</FontWeight>
+                      <Format>#,0.00</Format>
+                      <Color>White</Color>
+                    </Style>
+                  </TextRun>
+                  <TextRun>
+                    <Value>=ABS(
+    SUM(VAL(IIF(Fields!Kategori.Value = "Brüt Satış Kâr veya Zarar", Fields!Tutar.Value, 0))) 
+    - 
+    SUM(VAL(IIF(Fields!Kategori.Value = "Hizmet Toplamları", Fields!Tutar.Value, 0)))
+)</Value>
+                    <Style>
+                      <FontStyle>Italic</FontStyle>
+                      <FontSize>9pt</FontSize>
+                      <FontWeight>Bold</FontWeight>
+                      <Format>#,0.00</Format>
+                      <Color>White</Color>
+                    </Style>
+                  </TextRun>
+                </TextRuns>
+                <Style>
+                  <TextAlign>Right</TextAlign>
+                </Style>
+              </Paragraph>
+            </Paragraphs>
+            <rd:DefaultName>Textbox1</rd:DefaultName>
+            <Top>45.48417mm</Top>
+            <Left>160.57562mm</Left>
+            <Height>6mm</Height>
+            <Width>27.09022mm</Width>
+            <ZIndex>2</ZIndex>
+            <Style>
+              <Border>
+                <Style>None</Style>
+              </Border>
+              <BackgroundColor>=IIF(
+    (SUM(VAL(IIF(Fields!Kategori.Value = "Brüt Satış Kâr veya Zarar", Fields!Tutar.Value, 0))) 
+    - 
+    SUM(VAL(IIF(Fields!Kategori.Value = "Hizmet Toplamları", Fields!Tutar.Value, 0)))) &gt; 0, 
+    "LimeGreen", 
+    "Red"
+)</BackgroundColor>
+              <PaddingLeft>2pt</PaddingLeft>
+              <PaddingRight>2pt</PaddingRight>
+              <PaddingTop>2pt</PaddingTop>
+              <PaddingBottom>2pt</PaddingBottom>
+            </Style>
+          </Textbox>
+          <Textbox Name="Textbox2">
+            <CanGrow>true</CanGrow>
+            <KeepTogether>true</KeepTogether>
+            <Paragraphs>
+              <Paragraph>
+                <TextRuns>
+                  <TextRun>
+                    <Value>=IIF(
+    (SUM(VAL(IIF(Fields!Kategori.Value = "Brüt Satış Kâr veya Zarar", Fields!Tutar.Value, 0))) 
+    - 
+    SUM(VAL(IIF(Fields!Kategori.Value = "Hizmet Toplamları", Fields!Tutar.Value, 0)))) &gt; 0, 
+    "Kar", 
+    "Zarar"
+)</Value>
+                    <Style>
+                      <FontStyle>Italic</FontStyle>
+                      <FontWeight>Bold</FontWeight>
+                      <Format>#,0.00</Format>
+                      <Color>White</Color>
+                    </Style>
+                  </TextRun>
+                </TextRuns>
+                <Style />
+              </Paragraph>
+            </Paragraphs>
+            <rd:DefaultName>Textbox1</rd:DefaultName>
+            <Top>45.48417mm</Top>
+            <Left>143.61583mm</Left>
+            <Height>6mm</Height>
+            <Width>16.95979mm</Width>
+            <ZIndex>3</ZIndex>
+            <Style>
+              <Border>
+                <Style>None</Style>
+              </Border>
+              <BackgroundColor>=IIF(
+    (SUM(VAL(IIF(Fields!Kategori.Value = "Brüt Satış Kâr veya Zarar", Fields!Tutar.Value, 0))) 
+    - 
+    SUM(VAL(IIF(Fields!Kategori.Value = "Hizmet Toplamları", Fields!Tutar.Value, 0)))) &gt; 0, 
+    "LimeGreen", 
+    "Red"
+)</BackgroundColor>
+              <PaddingLeft>2pt</PaddingLeft>
+              <PaddingRight>2pt</PaddingRight>
+              <PaddingTop>2pt</PaddingTop>
+              <PaddingBottom>2pt</PaddingBottom>
+            </Style>
+          </Textbox>
+        </ReportItems>
+        <Height>51.59mm</Height>
+        <Style>
+          <Border>
+            <Style>None</Style>
+          </Border>
+        </Style>
+      </Body>
+      <Width>187.98334mm</Width>
+      <Page>
+        <PageHeight>297mm</PageHeight>
+        <PageWidth>210mm</PageWidth>
+        <LeftMargin>20mm</LeftMargin>
+        <RightMargin>20mm</RightMargin>
+        <TopMargin>20mm</TopMargin>
+        <BottomMargin>20mm</BottomMargin>
+        <ColumnSpacing>0.13cm</ColumnSpacing>
+        <Style />
+      </Page>
+    </ReportSection>
+  </ReportSections>
+  <ReportParameters>
+    <ReportParameter Name="StartDate">
+      <DataType>DateTime</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>=dateadd(dateinterval.month, -1, today().AddDays(-(today().Day-1)))</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>Başlangıç</Prompt>
+    </ReportParameter>
+    <ReportParameter Name="EndDate">
+      <DataType>DateTime</DataType>
+      <DefaultValue>
+        <Values>
+          <Value>=DateAdd("d",-(Day(today)), Today)</Value>
+        </Values>
+      </DefaultValue>
+      <Prompt>Bitiş</Prompt>
+    </ReportParameter>
+  </ReportParameters>
+  <ReportParametersLayout>
+    <GridLayoutDefinition>
+      <NumberOfColumns>4</NumberOfColumns>
+      <NumberOfRows>2</NumberOfRows>
+      <CellDefinitions>
+        <CellDefinition>
+          <ColumnIndex>0</ColumnIndex>
+          <RowIndex>0</RowIndex>
+          <ParameterName>StartDate</ParameterName>
+        </CellDefinition>
+        <CellDefinition>
+          <ColumnIndex>1</ColumnIndex>
+          <RowIndex>0</RowIndex>
+          <ParameterName>EndDate</ParameterName>
+        </CellDefinition>
+      </CellDefinitions>
+    </GridLayoutDefinition>
+  </ReportParametersLayout>
+  <rd:ReportUnitType>Mm</rd:ReportUnitType>
+  <rd:ReportServerUrl>http://192.168.1.7/ReportServer</rd:ReportServerUrl>
+  <rd:ReportID>60b93302-e121-45f2-9455-f805246ac248</rd:ReportID>
+</Report>
